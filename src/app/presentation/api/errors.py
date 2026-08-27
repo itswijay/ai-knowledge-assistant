@@ -5,6 +5,7 @@ from app.domain.errors import (
     DocumentProcessingError,
     DocumentTooLargeError,
     EmbeddingGenerationError,
+    LLMGenerationError,
     VectorRepositoryError,
 )
 
@@ -49,6 +50,16 @@ async def vector_repository_handler(
     )
 
 
+async def llm_provider_handler(
+    request: Request,
+    error: LLMGenerationError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        content={"detail": str(error)},
+    )
+
+
 def register_exception_handlers(application: FastAPI) -> None:
     application.add_exception_handler(
         DocumentTooLargeError,
@@ -65,4 +76,8 @@ def register_exception_handlers(application: FastAPI) -> None:
     application.add_exception_handler(
         VectorRepositoryError,
         vector_repository_handler,
+    )
+    application.add_exception_handler(
+        LLMGenerationError,
+        llm_provider_handler,
     )
