@@ -32,15 +32,15 @@ class FakeTransaction:
 
 @dataclass
 class FakeResult:
-    rows: Sequence[tuple[DocumentChunkModel, float]]
+    rows: Sequence[tuple[DocumentChunkModel, str, float]]
 
-    def all(self) -> Sequence[tuple[DocumentChunkModel, float]]:
+    def all(self) -> Sequence[tuple[DocumentChunkModel, str, float]]:
         return self.rows
 
 
 @dataclass
 class FakeSession:
-    rows: Sequence[tuple[DocumentChunkModel, float]] = ()
+    rows: Sequence[tuple[DocumentChunkModel, str, float]] = ()
     execute_error: SQLAlchemyError | None = None
     added: list[object] = field(default_factory=list)
     executed_statement: object | None = None
@@ -95,7 +95,6 @@ def build_repository(
 def build_chunk(document: Document) -> DocumentChunk:
     return DocumentChunk(
         document_id=document.id,
-        original_filename=document.original_filename,
         page_number=2,
         chunk_index=0,
         content="Warranty coverage lasts two years.",
@@ -120,6 +119,7 @@ async def test_save_document_maps_domain_entities_atomically() -> None:
     assert stored_document.original_filename == "warranty.pdf"
     assert len(stored_document.chunks) == 1
     assert stored_document.chunks[0].id == chunk.id
+    assert not hasattr(stored_document.chunks[0], "original_filename")
     assert stored_document.chunks[0].embedding == [0.1, 0.2, 0.3]
 
 
@@ -130,7 +130,6 @@ async def test_save_document_rejects_inconsistent_chunk_metadata() -> None:
     document = Document(original_filename="warranty.pdf")
     wrong_document_chunk = DocumentChunk(
         document_id=uuid4(),
-        original_filename=document.original_filename,
         page_number=1,
         chunk_index=0,
         content="Content",
@@ -150,13 +149,12 @@ async def test_search_filters_and_orders_inside_postgresql() -> None:
     stored_chunk = DocumentChunkModel(
         id=chunk_id,
         document_id=document_id,
-        original_filename="warranty.pdf",
         page_number=3,
         chunk_index=1,
         content="The warranty lasts two years.",
         embedding=[0.1, 0.2, 0.3],
     )
-    session = FakeSession(rows=[(stored_chunk, 0.91)])
+    session = FakeSession(rows=[(stored_chunk, "warranty.pdf", 0.91)])
     repository = build_repository(session)
 
     retrieved = await repository.search_similar(
@@ -168,11 +166,14 @@ async def test_search_filters_and_orders_inside_postgresql() -> None:
     assert len(retrieved) == 1
     assert retrieved[0].chunk_id == chunk_id
     assert retrieved[0].document_id == document_id
+    assert retrieved[0].original_filename == "warranty.pdf"
+    assert retrieved[0].page_number == 3
     assert retrieved[0].similarity_score == 0.91
     statement = session.executed_statement
     assert statement is not None
     compiled_sql = str(statement.compile(dialect=postgresql.dialect()))
     assert "JOIN documents" in compiled_sql
+    assert "documents.original_filename" in compiled_sql
     assert "document_chunks.embedding <=>" in compiled_sql
     assert "WHERE" in compiled_sql
     assert ">=" in compiled_sql

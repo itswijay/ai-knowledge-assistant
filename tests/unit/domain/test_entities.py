@@ -48,11 +48,10 @@ def test_document_page_enforces_valid_page_content(
         DocumentPage(page_number=page_number, content=content)
 
 
-def test_document_chunk_preserves_source_metadata() -> None:
+def test_document_chunk_preserves_ownership_and_page_metadata() -> None:
     document_id = uuid4()
     chunk = DocumentChunk(
         document_id=document_id,
-        original_filename="handbook.pdf",
         page_number=3,
         chunk_index=2,
         content="Warranty coverage lasts two years.",
@@ -60,7 +59,6 @@ def test_document_chunk_preserves_source_metadata() -> None:
     )
 
     assert chunk.document_id == document_id
-    assert chunk.original_filename == "handbook.pdf"
     assert chunk.page_number == 3
     assert chunk.chunk_index == 2
 
@@ -72,7 +70,6 @@ def test_document_chunk_rejects_invalid_embedding(
     with pytest.raises(ValueError, match="embedding"):
         DocumentChunk(
             document_id=uuid4(),
-            original_filename="handbook.pdf",
             page_number=1,
             chunk_index=0,
             content="Content",

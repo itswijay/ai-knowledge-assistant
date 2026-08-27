@@ -18,7 +18,6 @@ def test_document_chunk_preserves_required_metadata() -> None:
     assert {
         "id",
         "document_id",
-        "original_filename",
         "page_number",
         "chunk_index",
         "content",
@@ -56,7 +55,6 @@ def test_schema_enforces_chunk_metadata_invariants() -> None:
     ]
 
     assert check_names == {
-        "ck_document_chunks_original_filename_not_blank",
         "ck_document_chunks_page_number_positive",
         "ck_document_chunks_chunk_index_not_negative",
         "ck_document_chunks_content_not_blank",
@@ -78,4 +76,6 @@ def test_models_compile_to_postgresql_vector_schema() -> None:
 
     assert "CREATE TABLE documents" in document_ddl
     assert "CREATE TABLE document_chunks" in chunk_ddl
+    assert "original_filename VARCHAR(255) NOT NULL" in document_ddl
+    assert "original_filename" not in chunk_ddl
     assert "embedding VECTOR(768) NOT NULL" in chunk_ddl

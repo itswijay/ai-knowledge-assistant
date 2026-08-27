@@ -69,7 +69,6 @@ class IngestDocument:
         chunks = tuple(
             DocumentChunk(
                 document_id=document.id,
-                original_filename=document.original_filename,
                 page_number=draft.page_number,
                 chunk_index=draft.chunk_index,
                 content=draft.content,

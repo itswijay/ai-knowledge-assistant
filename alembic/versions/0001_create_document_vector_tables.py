@@ -39,7 +39,6 @@ def upgrade() -> None:
         "document_chunks",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("document_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("original_filename", sa.String(length=255), nullable=False),
         sa.Column("page_number", sa.Integer(), nullable=False),
         sa.Column("chunk_index", sa.Integer(), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
@@ -57,10 +56,6 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "length(btrim(content)) > 0",
             name="content_not_blank",
-        ),
-        sa.CheckConstraint(
-            "length(btrim(original_filename)) > 0",
-            name="original_filename_not_blank",
         ),
         sa.CheckConstraint(
             "page_number >= 1",

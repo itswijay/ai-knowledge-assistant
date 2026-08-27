@@ -126,6 +126,7 @@ async def test_ingestion_orchestrates_processing_and_persistence() -> None:
         stored_document.id,
         stored_document.id,
     ]
+    assert all(not hasattr(chunk, "original_filename") for chunk in stored_chunks)
     assert [chunk.page_number for chunk in stored_chunks] == [1, 1, 3]
     assert [chunk.chunk_index for chunk in stored_chunks] == [0, 1, 2]
     assert [chunk.embedding for chunk in stored_chunks] == [(1.0,), (2.0,), (3.0,)]

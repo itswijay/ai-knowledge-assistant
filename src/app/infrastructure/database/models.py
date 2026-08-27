@@ -56,10 +56,6 @@ class DocumentModel(Base):
 class DocumentChunkModel(Base):
     __tablename__ = "document_chunks"
     __table_args__ = (
-        CheckConstraint(
-            "length(btrim(original_filename)) > 0",
-            name="original_filename_not_blank",
-        ),
         CheckConstraint("page_number >= 1", name="page_number_positive"),
         CheckConstraint("chunk_index >= 0", name="chunk_index_not_negative"),
         CheckConstraint("length(btrim(content)) > 0", name="content_not_blank"),
@@ -81,7 +77,6 @@ class DocumentChunkModel(Base):
         ForeignKey("documents.id", ondelete="CASCADE"),
         nullable=False,
     )
-    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     page_number: Mapped[int] = mapped_column(nullable=False)
     chunk_index: Mapped[int] = mapped_column(nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)

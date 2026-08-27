@@ -31,8 +31,6 @@ class PostgresVectorRepository:
         for chunk in chunks:
             if chunk.document_id != document.id:
                 raise ValueError("Every chunk must belong to the supplied document")
-            if chunk.original_filename != document.original_filename:
-                raise ValueError("Chunk filename must match the supplied document")
             self._validate_embedding(chunk.embedding)
 
         document_model = DocumentModel(
@@ -65,7 +63,7 @@ class PostgresVectorRepository:
         distance = DocumentChunkModel.embedding.cosine_distance(list(query_embedding))
         similarity = (1.0 - distance).label("similarity_score")
         statement = (
-            select(DocumentChunkModel, similarity)
+            select(DocumentChunkModel, DocumentModel.original_filename, similarity)
             .join(DocumentModel, DocumentChunkModel.document_id == DocumentModel.id)
             .where(similarity >= minimum_similarity)
             .order_by(distance.asc(), DocumentChunkModel.id.asc())
@@ -81,8 +79,12 @@ class PostgresVectorRepository:
             ) from error
 
         return tuple(
-            self._to_retrieved_chunk(chunk, float(similarity_score))
-            for chunk, similarity_score in result.all()
+            self._to_retrieved_chunk(
+                chunk,
+                original_filename,
+                float(similarity_score),
+            )
+            for chunk, original_filename, similarity_score in result.all()
         )
 
     def _validate_embedding(self, embedding: EmbeddingVector) -> None:
@@ -100,7 +102,6 @@ class PostgresVectorRepository:
         return DocumentChunkModel(
             id=chunk.id,
             document_id=chunk.document_id,
-            original_filename=chunk.original_filename,
             page_number=chunk.page_number,
             chunk_index=chunk.chunk_index,
             content=chunk.content,
@@ -111,12 +112,13 @@ class PostgresVectorRepository:
     @staticmethod
     def _to_retrieved_chunk(
         chunk: DocumentChunkModel,
+        original_filename: str,
         similarity_score: float,
     ) -> RetrievedChunk:
         return RetrievedChunk(
             chunk_id=chunk.id,
             document_id=chunk.document_id,
-            original_filename=chunk.original_filename,
+            original_filename=original_filename,
             page_number=chunk.page_number,
             chunk_index=chunk.chunk_index,
             content=chunk.content,

@@ -32,7 +32,6 @@ class DocumentPage:
 @dataclass(frozen=True, slots=True)
 class DocumentChunk:
     document_id: UUID
-    original_filename: str
     page_number: int
     chunk_index: int
     content: str
@@ -41,8 +40,6 @@ class DocumentChunk:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
-        if not self.original_filename.strip():
-            raise ValueError("original_filename must not be blank")
         if self.page_number < 1:
             raise ValueError("page_number must be at least 1")
         if self.chunk_index < 0:
