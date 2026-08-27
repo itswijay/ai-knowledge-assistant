@@ -1,7 +1,14 @@
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import Field, PostgresDsn, Secret, SecretStr, StringConstraints
+from pydantic import (
+    Field,
+    PostgresDsn,
+    Secret,
+    SecretStr,
+    StringConstraints,
+    field_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 NonEmptyString = Annotated[
@@ -10,8 +17,8 @@ NonEmptyString = Annotated[
 ]
 
 
-class Settings(BaseSettings):
-    """Validated configuration loaded from environment variables."""
+class DatabaseSettings(BaseSettings):
+    """Database-only settings used by runtime code and migrations."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -22,6 +29,21 @@ class Settings(BaseSettings):
     )
 
     database_url: Secret[PostgresDsn]
+
+    @field_validator("database_url")
+    @classmethod
+    def require_asyncpg_driver(
+        cls,
+        value: Secret[PostgresDsn],
+    ) -> Secret[PostgresDsn]:
+        if value.get_secret_value().scheme != "postgresql+asyncpg":
+            raise ValueError("DATABASE_URL must use the postgresql+asyncpg scheme")
+        return value
+
+
+class Settings(DatabaseSettings):
+    """Validated configuration loaded from environment variables."""
+
     gemini_api_key: SecretStr = Field(min_length=1)
     gemini_llm_model: NonEmptyString = "gemini-3.7-flash"
     gemini_embedding_model: NonEmptyString = "gemini-embedding-2"
@@ -29,6 +51,13 @@ class Settings(BaseSettings):
     rag_top_k: int = Field(default=5, ge=1, le=50)
     rag_similarity_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
     max_upload_size_mb: int = Field(default=10, gt=0)
+
+
+@lru_cache
+def get_database_settings() -> DatabaseSettings:
+    """Return database settings without requiring unrelated provider secrets."""
+
+    return DatabaseSettings()  # type: ignore[call-arg]
 
 
 @lru_cache

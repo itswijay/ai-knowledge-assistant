@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import DatabaseSettings, Settings
 
 REQUIRED_SETTINGS: dict[str, Any] = {
     "database_url": "postgresql+asyncpg://postgres:password@localhost:5432/app",
@@ -63,10 +63,20 @@ def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
     assert settings.max_upload_size_mb == 15
 
 
+def test_database_settings_do_not_require_provider_credentials() -> None:
+    settings = DatabaseSettings(
+        _env_file=None,
+        database_url=REQUIRED_SETTINGS["database_url"],
+    )
+
+    assert settings.database_url.get_secret_value().scheme == "postgresql+asyncpg"
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
         ("database_url", "sqlite:///local.db"),
+        ("database_url", "postgresql://postgres:password@localhost/app"),
         ("gemini_llm_model", "   "),
         ("embedding_dimension", 0),
         ("rag_top_k", 0),
