@@ -12,3 +12,7 @@ class DocumentTooLargeError(InvalidDocumentError):
 
 class DocumentParsingError(DocumentProcessingError):
     """Text could not be extracted from an otherwise plausible document."""
+
+
+class EmbeddingGenerationError(Exception):
+    """An embedding provider could not produce valid vectors."""

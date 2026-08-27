@@ -79,6 +79,7 @@ def test_database_settings_do_not_require_provider_credentials() -> None:
         ("database_url", "postgresql://postgres:password@localhost/app"),
         ("gemini_llm_model", "   "),
         ("embedding_dimension", 0),
+        ("embedding_dimension", 3073),
         ("rag_top_k", 0),
         ("rag_top_k", 51),
         ("rag_similarity_threshold", -0.01),

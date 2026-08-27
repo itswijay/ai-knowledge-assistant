@@ -47,7 +47,7 @@ class Settings(DatabaseSettings):
     gemini_api_key: SecretStr = Field(min_length=1)
     gemini_llm_model: NonEmptyString = "gemini-3.7-flash"
     gemini_embedding_model: NonEmptyString = "gemini-embedding-2"
-    embedding_dimension: int = Field(default=768, gt=0)
+    embedding_dimension: int = Field(default=768, ge=128, le=3072)
     rag_top_k: int = Field(default=5, ge=1, le=50)
     rag_similarity_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
     max_upload_size_mb: int = Field(default=10, gt=0)
