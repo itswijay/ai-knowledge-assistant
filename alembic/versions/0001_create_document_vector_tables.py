@@ -43,7 +43,7 @@ def upgrade() -> None:
         sa.Column("page_number", sa.Integer(), nullable=False),
         sa.Column("chunk_index", sa.Integer(), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
-        sa.Column("embedding", pgvector.sqlalchemy.Vector(), nullable=False),
+        sa.Column("embedding", pgvector.sqlalchemy.Vector(768), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

@@ -3,6 +3,7 @@ from sqlalchemy import CheckConstraint, UniqueConstraint
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateTable
 
+from app.core.constants import EMBEDDING_DIMENSION
 from app.infrastructure.database.base import Base
 from app.infrastructure.database.models import DocumentChunkModel, DocumentModel
 
@@ -27,11 +28,11 @@ def test_document_chunk_preserves_required_metadata() -> None:
     assert all(not column.nullable for column in columns)
 
 
-def test_embedding_uses_configurable_pgvector_type() -> None:
+def test_embedding_uses_schema_fixed_pgvector_dimension() -> None:
     embedding_type = DocumentChunkModel.__table__.c.embedding.type
 
     assert isinstance(embedding_type, Vector)
-    assert embedding_type.dim is None
+    assert embedding_type.dim == EMBEDDING_DIMENSION == 768
 
 
 def test_chunk_ownership_cascades_on_document_deletion() -> None:
@@ -77,4 +78,4 @@ def test_models_compile_to_postgresql_vector_schema() -> None:
 
     assert "CREATE TABLE documents" in document_ddl
     assert "CREATE TABLE document_chunks" in chunk_ddl
-    assert "embedding VECTOR NOT NULL" in chunk_ddl
+    assert "embedding VECTOR(768) NOT NULL" in chunk_ddl

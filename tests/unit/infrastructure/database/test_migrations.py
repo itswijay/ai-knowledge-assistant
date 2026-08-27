@@ -35,6 +35,6 @@ def test_offline_migration_creates_pgvector_schema(
     assert "CREATE EXTENSION IF NOT EXISTS vector" in migration_sql
     assert "CREATE TABLE documents" in migration_sql
     assert "CREATE TABLE document_chunks" in migration_sql
-    assert "embedding VECTOR NOT NULL" in migration_sql
+    assert "embedding VECTOR(768) NOT NULL" in migration_sql
     assert "ck_documents_original_filename_not_blank" in migration_sql
     assert "ck_documents_ck_documents" not in migration_sql

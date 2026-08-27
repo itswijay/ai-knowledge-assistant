@@ -4,6 +4,7 @@ from math import isclose, nan
 import pytest
 from google.genai import errors, types
 
+from app.core.constants import EMBEDDING_DIMENSION
 from app.domain.errors import EmbeddingGenerationError
 from app.infrastructure.ai.gemini_embeddings import GeminiEmbeddingProvider
 
@@ -100,6 +101,22 @@ async def test_embedding_two_formats_question_answering_query() -> None:
     assert contents[0].parts[0].text == (
         "task: question answering | query: How long is the warranty?"
     )
+
+
+@pytest.mark.asyncio
+async def test_provider_requests_schema_embedding_dimension() -> None:
+    vector = [0.2] * EMBEDDING_DIMENSION
+    provider, models, _ = build_provider(
+        embedding_response(vector),
+        dimension=EMBEDDING_DIMENSION,
+    )
+
+    embedding = await provider.embed_query("How long is the warranty?")
+
+    config = models.calls[0]["config"]
+    assert isinstance(config, types.EmbedContentConfig)
+    assert config.output_dimensionality == EMBEDDING_DIMENSION == 768
+    assert len(embedding) == EMBEDDING_DIMENSION
 
 
 @pytest.mark.asyncio

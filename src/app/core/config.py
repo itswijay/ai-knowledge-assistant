@@ -11,6 +11,8 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.constants import EMBEDDING_DIMENSION
+
 NonEmptyString = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1),
@@ -48,7 +50,11 @@ class Settings(DatabaseSettings):
     gemini_llm_model: NonEmptyString = "gemini-3.7-flash"
     gemini_max_output_tokens: int = Field(default=512, ge=1, le=8192)
     gemini_embedding_model: NonEmptyString = "gemini-embedding-2"
-    embedding_dimension: int = Field(default=768, ge=128, le=3072)
+    embedding_dimension: int = Field(
+        default=EMBEDDING_DIMENSION,
+        ge=EMBEDDING_DIMENSION,
+        le=EMBEDDING_DIMENSION,
+    )
     rag_top_k: int = Field(default=5, ge=1, le=50)
     rag_similarity_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
     max_upload_size_mb: int = Field(default=10, gt=0)

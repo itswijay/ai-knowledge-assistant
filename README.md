@@ -104,14 +104,16 @@ Replace the example database credentials and Gemini key. Never commit `.env`.
 | `GEMINI_LLM_MODEL` | No | `gemini-3.7-flash` | Answer-generation model |
 | `GEMINI_MAX_OUTPUT_TOKENS` | No | `512` | Maximum generated answer tokens |
 | `GEMINI_EMBEDDING_MODEL` | No | `gemini-embedding-2` | Document and query embedding model |
-| `EMBEDDING_DIMENSION` | No | `768` | Expected embedding vector length |
+| `EMBEDDING_DIMENSION` | No | `768` | Schema-fixed embedding length; any other value is rejected |
 | `RAG_TOP_K` | No | `5` | Maximum chunks retrieved per question |
 | `RAG_SIMILARITY_THRESHOLD` | No | `0.70` | Minimum score required before generation |
 | `MAX_UPLOAD_SIZE_MB` | No | `10` | Maximum accepted PDF size in MiB |
 
-The embedding dimension used by Gemini, the application, and the pgvector data
-must remain consistent. Changing it after documents have been ingested requires
-re-embedding those documents.
+The embedding dimension is fixed at 768 in the SQLAlchemy model and PostgreSQL
+schema. Application configuration rejects any other value, and the Gemini adapter
+requests 768-dimensional embeddings. A future dimension change requires a new
+database migration, regeneration of every stored embedding, and rebuilding any
+vector indexes.
 
 ### Database setup
 
