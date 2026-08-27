@@ -1,3 +1,3 @@
-from app.application.services.text_chunker import ChunkDraft, WordChunker
+from app.application.services.text_chunker import ChunkDraft, TextChunker, WordChunker
 
-__all__ = ["ChunkDraft", "WordChunker"]
+__all__ = ["ChunkDraft", "TextChunker", "WordChunker"]

@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 from app.domain.entities import DocumentPage
 
@@ -9,6 +10,10 @@ class ChunkDraft:
     page_number: int
     chunk_index: int
     content: str
+
+
+class TextChunker(Protocol):
+    def chunk_pages(self, pages: Sequence[DocumentPage]) -> Sequence[ChunkDraft]: ...
 
 
 @dataclass(frozen=True, slots=True)
