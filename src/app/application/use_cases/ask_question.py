@@ -1,0 +1,93 @@
+from collections.abc import Sequence
+from math import isfinite
+
+from app.application.constants import FALLBACK_ANSWER
+from app.application.services import GroundedPromptBuilder
+from app.domain.entities import Answer, RetrievedChunk, SourceReference
+from app.domain.ports import EmbeddingProvider, LLMProvider, VectorRepository
+
+
+class AskQuestion:
+    def __init__(
+        self,
+        *,
+        embedding_provider: EmbeddingProvider,
+        vector_repository: VectorRepository,
+        llm_provider: LLMProvider,
+        prompt_builder: GroundedPromptBuilder,
+        top_k: int,
+        similarity_threshold: float,
+    ) -> None:
+        if not 1 <= top_k <= 50:
+            raise ValueError("top_k must be between 1 and 50")
+        if not isfinite(similarity_threshold) or not 0.0 <= similarity_threshold <= 1.0:
+            raise ValueError("similarity_threshold must be between 0 and 1")
+
+        self._embedding_provider = embedding_provider
+        self._vector_repository = vector_repository
+        self._llm_provider = llm_provider
+        self._prompt_builder = prompt_builder
+        self._top_k = top_k
+        self._similarity_threshold = similarity_threshold
+
+    async def execute(self, question: str) -> Answer:
+        cleaned_question = question.strip()
+        if not cleaned_question:
+            raise ValueError("question must not be blank")
+
+        query_embedding = await self._embedding_provider.embed_query(cleaned_question)
+        retrieved_chunks = await self._vector_repository.search_similar(
+            query_embedding,
+            limit=self._top_k,
+            minimum_similarity=self._similarity_threshold,
+        )
+        sufficient_chunks = self._select_sufficient_chunks(retrieved_chunks)
+        if not sufficient_chunks:
+            return self._fallback()
+
+        grounded_prompt = self._prompt_builder.build(
+            question=cleaned_question,
+            chunks=sufficient_chunks,
+        )
+        answer_text = (
+            await self._llm_provider.generate(
+                system_instruction=grounded_prompt.system_instruction,
+                prompt=grounded_prompt.prompt,
+            )
+        ).strip()
+        if answer_text == FALLBACK_ANSWER:
+            return self._fallback()
+
+        return Answer(
+            text=answer_text,
+            sources=self._collect_sources(sufficient_chunks),
+        )
+
+    def _select_sufficient_chunks(
+        self,
+        chunks: Sequence[RetrievedChunk],
+    ) -> tuple[RetrievedChunk, ...]:
+        return tuple(
+            chunk
+            for chunk in chunks[: self._top_k]
+            if chunk.similarity_score >= self._similarity_threshold
+        )
+
+    @staticmethod
+    def _collect_sources(
+        chunks: Sequence[RetrievedChunk],
+    ) -> tuple[SourceReference, ...]:
+        unique_sources: dict[tuple[str, int], SourceReference] = {}
+        for chunk in chunks:
+            key = (chunk.original_filename, chunk.page_number)
+            unique_sources.setdefault(
+                key,
+                SourceReference(
+                    document=chunk.original_filename, page=chunk.page_number
+                ),
+            )
+        return tuple(unique_sources.values())
+
+    @staticmethod
+    def _fallback() -> Answer:
+        return Answer(text=FALLBACK_ANSWER)
