@@ -20,3 +20,7 @@ class EmbeddingGenerationError(Exception):
 
 class VectorRepositoryError(Exception):
     """Vector persistence or retrieval failed."""
+
+
+class LLMGenerationError(Exception):
+    """A language model could not produce a valid answer."""

@@ -46,6 +46,7 @@ class Settings(DatabaseSettings):
 
     gemini_api_key: SecretStr = Field(min_length=1)
     gemini_llm_model: NonEmptyString = "gemini-3.7-flash"
+    gemini_max_output_tokens: int = Field(default=512, ge=1, le=8192)
     gemini_embedding_model: NonEmptyString = "gemini-embedding-2"
     embedding_dimension: int = Field(default=768, ge=128, le=3072)
     rag_top_k: int = Field(default=5, ge=1, le=50)

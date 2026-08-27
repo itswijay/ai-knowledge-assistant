@@ -20,6 +20,7 @@ def test_settings_use_safe_phase_one_defaults() -> None:
     settings = build_settings()
 
     assert settings.gemini_llm_model == "gemini-3.7-flash"
+    assert settings.gemini_max_output_tokens == 512
     assert settings.gemini_embedding_model == "gemini-embedding-2"
     assert settings.embedding_dimension == 768
     assert settings.rag_top_k == 5
@@ -44,6 +45,7 @@ def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
         "DATABASE_URL": "postgresql+asyncpg://postgres:password@localhost/app",
         "GEMINI_API_KEY": "environment-api-key",
         "GEMINI_LLM_MODEL": "test-llm-model",
+        "GEMINI_MAX_OUTPUT_TOKENS": "700",
         "GEMINI_EMBEDDING_MODEL": "test-embedding-model",
         "EMBEDDING_DIMENSION": "1536",
         "RAG_TOP_K": "8",
@@ -56,6 +58,7 @@ def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
 
     assert settings.gemini_llm_model == "test-llm-model"
+    assert settings.gemini_max_output_tokens == 700
     assert settings.gemini_embedding_model == "test-embedding-model"
     assert settings.embedding_dimension == 1536
     assert settings.rag_top_k == 8
@@ -78,6 +81,8 @@ def test_database_settings_do_not_require_provider_credentials() -> None:
         ("database_url", "sqlite:///local.db"),
         ("database_url", "postgresql://postgres:password@localhost/app"),
         ("gemini_llm_model", "   "),
+        ("gemini_max_output_tokens", 0),
+        ("gemini_max_output_tokens", 8193),
         ("embedding_dimension", 0),
         ("embedding_dimension", 3073),
         ("rag_top_k", 0),
