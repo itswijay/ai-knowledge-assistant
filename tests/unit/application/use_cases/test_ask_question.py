@@ -176,6 +176,20 @@ async def test_low_confidence_results_return_fallback_without_calling_llm() -> N
 
 
 @pytest.mark.asyncio
+async def test_evaluation_trace_retains_low_confidence_retrieval() -> None:
+    low_confidence_chunk = retrieved_chunk(chunk_id=1, similarity=0.3)
+    use_case, _, repository, llm = build_use_case([low_confidence_chunk])
+
+    trace = await use_case.execute_with_trace("What is the retail price?")
+
+    assert repository.search_calls == [((0.1, 0.2), 5, 0.0)]
+    assert trace.answer.text == FALLBACK_ANSWER
+    assert trace.answer.sources == ()
+    assert trace.retrieved_chunks == (low_confidence_chunk,)
+    assert llm.calls == []
+
+
+@pytest.mark.asyncio
 async def test_only_sufficient_chunks_are_sent_to_llm_and_exposed_as_sources() -> None:
     chunks = (
         retrieved_chunk(chunk_id=1, similarity=0.91),

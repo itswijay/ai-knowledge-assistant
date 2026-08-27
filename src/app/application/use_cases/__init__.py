@@ -1,4 +1,4 @@
-from app.application.use_cases.ask_question import AskQuestion
+from app.application.use_cases.ask_question import AskQuestion, QuestionAnswerTrace
 from app.application.use_cases.ingest_document import (
     IngestDocument,
     IngestDocumentCommand,
@@ -10,4 +10,5 @@ __all__ = [
     "IngestDocument",
     "IngestDocumentCommand",
     "IngestDocumentResult",
+    "QuestionAnswerTrace",
 ]

@@ -1,0 +1,145 @@
+{
+  "document": "sample-product-guide.pdf",
+  "pages": [
+    [
+      "Aurora Smart Desk Lamp - Product Guide",
+      "The Aurora Smart Desk Lamp has a two-year limited warranty starting on the original purchase date.",
+      "A warranty claim requires the original purchase receipt.",
+      "The warranty covers defects in materials and workmanship.",
+      "It does not cover accidental damage, liquid damage, or repairs performed by an unauthorized service provider.",
+      "Unused lamps may be returned within 30 calendar days of purchase when they are in the original packaging.",
+      "After a returned lamp passes inspection, the refund is sent to the original payment method within five business days."
+    ],
+    [
+      "Electrical and Care Information",
+      "The power adapter accepts 100 to 240 volts AC and is rated at 24 watts.",
+      "The LED uses 12 watts and produces up to 800 lumens.",
+      "The lamp provides three color temperatures: 2700 K, 4000 K, and 5000 K.",
+      "The supported operating temperature is 0 to 40 degrees Celsius.",
+      "Clean the lamp with a soft, dry cloth. Do not use solvents or abrasive cleaners.",
+      "Customer support is available by email at support@aurora-example.com."
+    ],
+    [
+      "Connectivity and Troubleshooting",
+      "To enter pairing mode, hold the control button for five seconds until the indicator blinks blue.",
+      "To perform a factory reset, hold the control button for ten seconds until the indicator flashes red twice.",
+      "The lamp connects only to 2.4 GHz Wi-Fi networks and does not support 5 GHz Wi-Fi.",
+      "Firmware updates are installed in the Aurora mobile app under Settings, Device, then Firmware.",
+      "The serial number is printed on the underside of the base and begins with the letters AUR."
+    ]
+  ],
+  "cases": [
+    {
+      "question": "How long is the lamp warranty?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["two-year"],
+      "expected_page": 1
+    },
+    {
+      "question": "What do I need to submit a warranty claim?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["original", "receipt"],
+      "expected_page": 1
+    },
+    {
+      "question": "What kinds of problems does the warranty cover?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["materials", "workmanship"],
+      "expected_page": 1
+    },
+    {
+      "question": "Can I return an unused lamp after purchase?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["30", "original packaging"],
+      "expected_page": 1
+    },
+    {
+      "question": "How soon is a refund issued after inspection?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["five business days", "original payment method"],
+      "expected_page": 1
+    },
+    {
+      "question": "What input voltage does the power adapter accept?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["100", "240"],
+      "expected_page": 2
+    },
+    {
+      "question": "How bright is the lamp?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["800 lumens"],
+      "expected_page": 2
+    },
+    {
+      "question": "Which color temperatures are available?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["2700", "4000", "5000"],
+      "expected_page": 2
+    },
+    {
+      "question": "How should I clean the lamp?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["soft", "dry cloth"],
+      "expected_page": 2
+    },
+    {
+      "question": "How do I put the lamp into pairing mode?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["five seconds", "blue"],
+      "expected_page": 3
+    },
+    {
+      "question": "How do I perform a factory reset?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["ten seconds", "red"],
+      "expected_page": 3
+    },
+    {
+      "question": "Does the lamp connect to 5 GHz Wi-Fi?",
+      "expected_behavior": "answer",
+      "expected_answer_terms": ["2.4", "does not support", "5 GHz"],
+      "expected_page": 3
+    },
+    {
+      "question": "Who is the chief executive of Aurora?",
+      "expected_behavior": "refuse"
+    },
+    {
+      "question": "What is the retail price of the lamp?",
+      "expected_behavior": "refuse"
+    },
+    {
+      "question": "How much does the lamp weigh?",
+      "expected_behavior": "refuse"
+    },
+    {
+      "question": "What are the lamp's physical dimensions?",
+      "expected_behavior": "refuse"
+    },
+    {
+      "question": "Is the lamp compatible with Apple HomeKit?",
+      "expected_behavior": "refuse"
+    },
+    {
+      "question": "Does the lamp contain a rechargeable battery?",
+      "expected_behavior": "refuse"
+    },
+    {
+      "question": "In which countries is the lamp manufactured?",
+      "expected_behavior": "refuse"
+    },
+    {
+      "question": "What colors is the lamp body sold in?",
+      "expected_behavior": "refuse"
+    },
+    {
+      "question": "Is the lamp waterproof for outdoor use?",
+      "expected_behavior": "refuse"
+    },
+    {
+      "question": "How long does standard shipping take?",
+      "expected_behavior": "refuse"
+    }
+  ]
+}

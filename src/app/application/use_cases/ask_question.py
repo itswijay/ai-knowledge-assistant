@@ -1,10 +1,17 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 from math import isfinite
 
 from app.application.constants import FALLBACK_ANSWER
 from app.application.services import GroundedPromptBuilder
 from app.domain.entities import Answer, RetrievedChunk, SourceReference
 from app.domain.ports import EmbeddingProvider, LLMProvider, VectorRepository
+
+
+@dataclass(frozen=True, slots=True)
+class QuestionAnswerTrace:
+    answer: Answer
+    retrieved_chunks: tuple[RetrievedChunk, ...]
 
 
 class AskQuestion:
@@ -31,6 +38,23 @@ class AskQuestion:
         self._similarity_threshold = similarity_threshold
 
     async def execute(self, question: str) -> Answer:
+        trace = await self._execute(
+            question,
+            retrieval_minimum_similarity=self._similarity_threshold,
+        )
+        return trace.answer
+
+    async def execute_with_trace(self, question: str) -> QuestionAnswerTrace:
+        """Answer while retaining low-confidence retrieval data for evaluation."""
+
+        return await self._execute(question, retrieval_minimum_similarity=0.0)
+
+    async def _execute(
+        self,
+        question: str,
+        *,
+        retrieval_minimum_similarity: float,
+    ) -> QuestionAnswerTrace:
         cleaned_question = question.strip()
         if not cleaned_question:
             raise ValueError("question must not be blank")
@@ -39,11 +63,15 @@ class AskQuestion:
         retrieved_chunks = await self._vector_repository.search_similar(
             query_embedding,
             limit=self._top_k,
-            minimum_similarity=self._similarity_threshold,
+            minimum_similarity=retrieval_minimum_similarity,
         )
-        sufficient_chunks = self._select_sufficient_chunks(retrieved_chunks)
+        traced_chunks = tuple(retrieved_chunks[: self._top_k])
+        sufficient_chunks = self._select_sufficient_chunks(traced_chunks)
         if not sufficient_chunks:
-            return self._fallback()
+            return QuestionAnswerTrace(
+                answer=self._fallback(),
+                retrieved_chunks=traced_chunks,
+            )
 
         grounded_prompt = self._prompt_builder.build(
             question=cleaned_question,
@@ -56,11 +84,17 @@ class AskQuestion:
             )
         ).strip()
         if answer_text == FALLBACK_ANSWER:
-            return self._fallback()
+            return QuestionAnswerTrace(
+                answer=self._fallback(),
+                retrieved_chunks=traced_chunks,
+            )
 
-        return Answer(
-            text=answer_text,
-            sources=self._collect_sources(sufficient_chunks),
+        return QuestionAnswerTrace(
+            answer=Answer(
+                text=answer_text,
+                sources=self._collect_sources(sufficient_chunks),
+            ),
+            retrieved_chunks=traced_chunks,
         )
 
     def _select_sufficient_chunks(
