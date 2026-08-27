@@ -16,3 +16,7 @@ class DocumentParsingError(DocumentProcessingError):
 
 class EmbeddingGenerationError(Exception):
     """An embedding provider could not produce valid vectors."""
+
+
+class VectorRepositoryError(Exception):
+    """Vector persistence or retrieval failed."""
