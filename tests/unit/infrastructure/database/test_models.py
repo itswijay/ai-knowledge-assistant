@@ -1,15 +1,79 @@
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import CheckConstraint, UniqueConstraint
+from sqlalchemy import CheckConstraint, PrimaryKeyConstraint, UniqueConstraint
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateTable
 
 from app.core.constants import EMBEDDING_DIMENSION
 from app.infrastructure.database.base import Base
-from app.infrastructure.database.models import DocumentChunkModel, DocumentModel
+from app.infrastructure.database.models import (
+    AssistantModel,
+    DocumentChunkModel,
+    DocumentModel,
+    OrganizationMemberModel,
+    OrganizationModel,
+)
 
 
 def test_expected_tables_are_registered() -> None:
-    assert set(Base.metadata.tables) == {"documents", "document_chunks"}
+    assert set(Base.metadata.tables) == {
+        "organizations",
+        "organization_members",
+        "assistants",
+        "documents",
+        "document_chunks",
+    }
+
+
+def test_organization_membership_uses_composite_identity_and_role_check() -> None:
+    table = OrganizationMemberModel.__table__
+    primary_key = next(
+        constraint
+        for constraint in table.constraints
+        if isinstance(constraint, PrimaryKeyConstraint)
+    )
+    check_names = {
+        constraint.name
+        for constraint in table.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
+
+    assert [column.name for column in primary_key.columns] == [
+        "organization_id",
+        "user_id",
+    ]
+    assert check_names == {"ck_organization_members_role_valid"}
+    assert {index.name for index in table.indexes} == {
+        "ix_organization_members_organization_id",
+        "ix_organization_members_user_id",
+    }
+
+
+def test_tenant_ownership_foreign_keys_cascade() -> None:
+    membership_foreign_key = next(
+        iter(OrganizationMemberModel.__table__.c.organization_id.foreign_keys)
+    )
+    assistant_foreign_key = next(
+        iter(AssistantModel.__table__.c.organization_id.foreign_keys)
+    )
+
+    assert membership_foreign_key.target_fullname == "organizations.id"
+    assert membership_foreign_key.ondelete == "CASCADE"
+    assert assistant_foreign_key.target_fullname == "organizations.id"
+    assert assistant_foreign_key.ondelete == "CASCADE"
+
+
+def test_assistant_model_matches_bounded_customization_schema() -> None:
+    columns = AssistantModel.__table__.columns
+
+    assert columns.name.type.length == 100
+    assert columns.description.type.length == 1000
+    assert columns.welcome_message.type.length == 500
+    assert columns.system_prompt.type.length == 4000
+    assert columns.logo_url.type.length == 2048
+    assert columns.primary_color.type.length == 7
+    assert {index.name for index in AssistantModel.__table__.indexes} == {
+        "ix_assistants_organization_id"
+    }
 
 
 def test_document_chunk_preserves_required_metadata() -> None:
@@ -67,6 +131,17 @@ def test_schema_enforces_chunk_metadata_invariants() -> None:
 
 
 def test_models_compile_to_postgresql_vector_schema() -> None:
+    organization_ddl = str(
+        CreateTable(OrganizationModel.__table__).compile(dialect=postgresql.dialect())
+    )
+    membership_ddl = str(
+        CreateTable(OrganizationMemberModel.__table__).compile(
+            dialect=postgresql.dialect()
+        )
+    )
+    assistant_ddl = str(
+        CreateTable(AssistantModel.__table__).compile(dialect=postgresql.dialect())
+    )
     document_ddl = str(
         CreateTable(DocumentModel.__table__).compile(dialect=postgresql.dialect())
     )
@@ -79,3 +154,7 @@ def test_models_compile_to_postgresql_vector_schema() -> None:
     assert "original_filename VARCHAR(255) NOT NULL" in document_ddl
     assert "original_filename" not in chunk_ddl
     assert "embedding VECTOR(768) NOT NULL" in chunk_ddl
+    assert "CREATE TABLE organizations" in organization_ddl
+    assert "CREATE TABLE organization_members" in membership_ddl
+    assert "PRIMARY KEY (organization_id, user_id)" in membership_ddl
+    assert "CREATE TABLE assistants" in assistant_ddl

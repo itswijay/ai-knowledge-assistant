@@ -54,6 +54,10 @@ class ResourceConflictError(Exception):
     """A requested resource operation conflicts with persisted state."""
 
 
+class TenantRepositoryError(Exception):
+    """Tenant persistence failed without exposing database details."""
+
+
 class DocumentProcessingError(Exception):
     """Base error for expected document-processing failures."""
 
