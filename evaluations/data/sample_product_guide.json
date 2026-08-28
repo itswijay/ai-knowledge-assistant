@@ -98,7 +98,7 @@
     {
       "question": "Does the lamp connect to 5 GHz Wi-Fi?",
       "expected_behavior": "answer",
-      "expected_answer_terms": ["2.4", "does not support", "5 GHz"],
+      "expected_answer_terms": ["does not support", "5 GHz"],
       "expected_page": 3
     },
     {

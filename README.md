@@ -106,7 +106,7 @@ Replace the example database credentials and Gemini key. Never commit `.env`.
 | `GEMINI_EMBEDDING_MODEL` | No | `gemini-embedding-2` | Document and query embedding model |
 | `EMBEDDING_DIMENSION` | No | `768` | Schema-fixed embedding length; any other value is rejected |
 | `RAG_TOP_K` | No | `5` | Maximum chunks retrieved per question |
-| `RAG_SIMILARITY_THRESHOLD` | No | `0.70` | Minimum score required before generation |
+| `RAG_SIMILARITY_THRESHOLD` | No | `0.65` | Minimum score required before generation |
 | `MAX_UPLOAD_SIZE_MB` | No | `10` | Maximum accepted PDF size in MiB |
 
 The embedding dimension is fixed at 768 in the SQLAlchemy model and PostgreSQL

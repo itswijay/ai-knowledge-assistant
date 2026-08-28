@@ -56,7 +56,7 @@ class Settings(DatabaseSettings):
         le=EMBEDDING_DIMENSION,
     )
     rag_top_k: int = Field(default=5, ge=1, le=50)
-    rag_similarity_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    rag_similarity_threshold: float = Field(default=0.65, ge=0.0, le=1.0)
     max_upload_size_mb: int = Field(default=10, gt=0)
 
 

@@ -25,7 +25,7 @@ def test_settings_use_safe_phase_one_defaults() -> None:
     assert settings.gemini_embedding_model == "gemini-embedding-2"
     assert settings.embedding_dimension == EMBEDDING_DIMENSION == 768
     assert settings.rag_top_k == 5
-    assert settings.rag_similarity_threshold == 0.7
+    assert settings.rag_similarity_threshold == 0.65
     assert settings.max_upload_size_mb == 10
 
 
