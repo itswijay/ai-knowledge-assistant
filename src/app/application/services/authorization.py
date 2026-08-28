@@ -1,13 +1,16 @@
 from uuid import UUID
 
 from app.domain.entities.assistant import Assistant
+from app.domain.entities.document import Document
 from app.domain.entities.organization import OrganizationMember, OrganizationRole
 from app.domain.errors import (
     AssistantNotFoundError,
+    DocumentNotFoundError,
     InsufficientPermissionError,
     OrganizationNotFoundError,
 )
 from app.domain.ports.assistant_repository import AssistantRepository
+from app.domain.ports.document_repository import DocumentRepository
 from app.domain.ports.organization_member_repository import (
     OrganizationMemberRepository,
 )
@@ -103,3 +106,51 @@ class AssistantAccessChecker:
         if membership is None:
             raise AssistantNotFoundError("Assistant not found")
         return assistant, membership
+
+
+class DocumentAccessChecker:
+    def __init__(
+        self,
+        document_repository: DocumentRepository,
+        assistant_access_checker: AssistantAccessChecker,
+    ) -> None:
+        self._document_repository = document_repository
+        self._assistant_access_checker = assistant_access_checker
+
+    async def require_member(
+        self,
+        *,
+        user_id: UUID,
+        document_id: UUID,
+    ) -> Document:
+        document = await self._get_document(document_id)
+        try:
+            await self._assistant_access_checker.require_member(
+                user_id=user_id,
+                assistant_id=document.assistant_id,
+            )
+        except AssistantNotFoundError as error:
+            raise DocumentNotFoundError("Document not found") from error
+        return document
+
+    async def require_manager(
+        self,
+        *,
+        user_id: UUID,
+        document_id: UUID,
+    ) -> Document:
+        document = await self._get_document(document_id)
+        try:
+            await self._assistant_access_checker.require_manager(
+                user_id=user_id,
+                assistant_id=document.assistant_id,
+            )
+        except AssistantNotFoundError as error:
+            raise DocumentNotFoundError("Document not found") from error
+        return document
+
+    async def _get_document(self, document_id: UUID) -> Document:
+        document = await self._document_repository.get_by_id(document_id)
+        if document is None:
+            raise DocumentNotFoundError("Document not found")
+        return document

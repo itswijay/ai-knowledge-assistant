@@ -5,10 +5,12 @@ from app.application.use_cases import (
     CreateAssistant,
     CreateOrganization,
     DeleteAssistant,
+    DeleteDocument,
     GetAssistant,
     GetOrganization,
     IngestDocument,
     ListAssistants,
+    ListDocuments,
     ListOrganizations,
     UpdateAssistant,
 )
@@ -39,6 +41,8 @@ async def test_application_container_wires_and_closes_resources() -> None:
     assert isinstance(container.get_assistant, GetAssistant)
     assert isinstance(container.update_assistant, UpdateAssistant)
     assert isinstance(container.delete_assistant, DeleteAssistant)
+    assert isinstance(container.list_documents, ListDocuments)
+    assert isinstance(container.delete_document, DeleteDocument)
     assert isinstance(container.access_token_verifier, SupabaseJWTVerifier)
     assert isinstance(container.embedding_provider, GeminiEmbeddingProvider)
     assert isinstance(container.llm_provider, GeminiLLMProvider)

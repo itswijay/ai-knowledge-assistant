@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
@@ -7,11 +8,17 @@ import pytest
 from app.application.use_cases import IngestDocumentCommand, IngestDocumentResult
 from app.dependencies import (
     get_access_token_verifier,
+    get_delete_document,
     get_ingest_document,
+    get_list_documents,
     get_max_upload_size_bytes,
 )
-from app.domain.entities import AuthenticatedUser
-from app.domain.errors import InsufficientPermissionError, InvalidDocumentError
+from app.domain.entities import AuthenticatedUser, Document
+from app.domain.errors import (
+    DocumentNotFoundError,
+    InsufficientPermissionError,
+    InvalidDocumentError,
+)
 from app.main import create_app
 
 
@@ -38,6 +45,35 @@ class FakeAccessTokenVerifier:
     async def verify(self, token: str) -> AuthenticatedUser:
         self.tokens.append(token)
         return self.user
+
+
+@dataclass
+class FakeListDocuments:
+    documents: Sequence[Document] = ()
+    error: Exception | None = None
+    calls: list[tuple[UUID, UUID]] = field(default_factory=list)
+
+    async def execute(
+        self,
+        *,
+        user_id: UUID,
+        assistant_id: UUID,
+    ) -> Sequence[Document]:
+        self.calls.append((user_id, assistant_id))
+        if self.error is not None:
+            raise self.error
+        return self.documents
+
+
+@dataclass
+class FakeDeleteDocument:
+    error: Exception | None = None
+    calls: list[tuple[UUID, UUID]] = field(default_factory=list)
+
+    async def execute(self, *, user_id: UUID, document_id: UUID) -> None:
+        self.calls.append((user_id, document_id))
+        if self.error is not None:
+            raise self.error
 
 
 async def post_document(
@@ -79,6 +115,38 @@ async def post_document(
             f"/api/v1/assistants/{target_assistant_id}/documents",
             headers=headers,
             files={"file": (filename, content, "application/pdf")},
+        )
+
+
+async def request_document_management(
+    *,
+    method: str,
+    path: str,
+    dependency: object,
+    use_case: object,
+    user: AuthenticatedUser,
+) -> httpx.Response:
+    application = create_app()
+    verifier = FakeAccessTokenVerifier(user)
+
+    async def override_verifier() -> FakeAccessTokenVerifier:
+        return verifier
+
+    async def override_use_case() -> object:
+        return use_case
+
+    application.dependency_overrides[get_access_token_verifier] = override_verifier
+    application.dependency_overrides[dependency] = override_use_case
+    transport = httpx.ASGITransport(app=application)
+
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+    ) as client:
+        return await client.request(
+            method,
+            path,
+            headers={"Authorization": "Bearer valid-token"},
         )
 
 
@@ -170,6 +238,67 @@ async def test_document_upload_maps_member_role_to_forbidden() -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_documents_uses_verified_user_and_assistant_scope() -> None:
+    user = AuthenticatedUser(id=uuid4())
+    assistant_id = uuid4()
+    documents = (
+        Document(assistant_id=assistant_id, original_filename="first.pdf"),
+        Document(assistant_id=assistant_id, original_filename="second.pdf"),
+    )
+    use_case = FakeListDocuments(documents=documents)
+
+    response = await request_document_management(
+        method="GET",
+        path=f"/api/v1/assistants/{assistant_id}/documents",
+        dependency=get_list_documents,
+        use_case=use_case,
+        user=user,
+    )
+
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()] == [
+        str(document.id) for document in documents
+    ]
+    assert all(item["assistant_id"] == str(assistant_id) for item in response.json())
+    assert use_case.calls == [(user.id, assistant_id)]
+
+
+@pytest.mark.asyncio
+async def test_delete_document_returns_no_content() -> None:
+    user = AuthenticatedUser(id=uuid4())
+    document_id = uuid4()
+    use_case = FakeDeleteDocument()
+
+    response = await request_document_management(
+        method="DELETE",
+        path=f"/api/v1/documents/{document_id}",
+        dependency=get_delete_document,
+        use_case=use_case,
+        user=user,
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert use_case.calls == [(user.id, document_id)]
+
+
+@pytest.mark.asyncio
+async def test_cross_tenant_document_delete_is_concealed_as_not_found() -> None:
+    use_case = FakeDeleteDocument(error=DocumentNotFoundError("Document not found"))
+
+    response = await request_document_management(
+        method="DELETE",
+        path=f"/api/v1/documents/{uuid4()}",
+        dependency=get_delete_document,
+        use_case=use_case,
+        user=AuthenticatedUser(id=uuid4()),
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Document not found"}
+
+
+@pytest.mark.asyncio
 async def test_document_upload_requires_multipart_file() -> None:
     application = create_app()
     verifier = FakeAccessTokenVerifier(AuthenticatedUser(id=uuid4()))
@@ -217,4 +346,10 @@ async def test_openapi_documents_upload_bearer_authentication() -> None:
         "post"
     ]
     assert operation["security"] == [{"HTTPBearer": []}]
+    assert response.json()["paths"]["/api/v1/assistants/{assistant_id}/documents"][
+        "get"
+    ]["security"] == [{"HTTPBearer": []}]
+    assert response.json()["paths"]["/api/v1/documents/{document_id}"]["delete"][
+        "security"
+    ] == [{"HTTPBearer": []}]
     assert "/api/v1/documents" not in response.json()["paths"]

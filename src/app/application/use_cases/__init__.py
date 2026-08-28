@@ -17,6 +17,7 @@ from app.application.use_cases.manage_assistants import (
     UpdateAssistant,
     UpdateAssistantCommand,
 )
+from app.application.use_cases.manage_documents import DeleteDocument, ListDocuments
 from app.application.use_cases.manage_organizations import (
     CreateOrganization,
     CreateOrganizationCommand,
@@ -32,12 +33,14 @@ __all__ = [
     "CreateOrganization",
     "CreateOrganizationCommand",
     "DeleteAssistant",
+    "DeleteDocument",
     "GetAssistant",
     "GetOrganization",
     "IngestDocument",
     "IngestDocumentCommand",
     "IngestDocumentResult",
     "ListAssistants",
+    "ListDocuments",
     "ListOrganizations",
     "QuestionAnswerTrace",
     "UpdateAssistant",

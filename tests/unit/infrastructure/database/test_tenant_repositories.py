@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.domain.entities import (
     Assistant,
+    Document,
     Organization,
     OrganizationMember,
     OrganizationRole,
@@ -24,8 +25,10 @@ from app.domain.errors import (
 from app.infrastructure.database.assistant_repository import (
     PostgresAssistantRepository,
 )
+from app.infrastructure.database.document_repository import PostgresDocumentRepository
 from app.infrastructure.database.models import (
     AssistantModel,
+    DocumentModel,
     OrganizationMemberModel,
     OrganizationModel,
 )
@@ -155,6 +158,15 @@ def assistant_model(assistant: Assistant) -> AssistantModel:
         primary_color=assistant.primary_color,
         created_at=assistant.created_at,
         updated_at=assistant.updated_at,
+    )
+
+
+def document_model(document: Document) -> DocumentModel:
+    return DocumentModel(
+        id=document.id,
+        assistant_id=document.assistant_id,
+        original_filename=document.original_filename,
+        created_at=document.created_at,
     )
 
 
@@ -388,6 +400,57 @@ async def test_delete_assistant_reports_whether_row_existed() -> None:
 
     missing_session = FakeSession()
     repository = PostgresAssistantRepository(session_factory(missing_session))
+    assert await repository.delete(uuid4()) is False
+    assert missing_session.deleted == []
+
+
+@pytest.mark.asyncio
+async def test_list_documents_is_assistant_scoped_in_sql() -> None:
+    assistant_id = uuid4()
+    documents = (
+        Document(assistant_id=assistant_id, original_filename="first.pdf"),
+        Document(assistant_id=assistant_id, original_filename="second.pdf"),
+    )
+    session = FakeSession(
+        result_models=[document_model(document) for document in documents]
+    )
+    repository = PostgresDocumentRepository(session_factory(session))
+
+    assert await repository.list_by_assistant(assistant_id) == documents
+    statement = session.executed_statement
+    assert statement is not None
+    sql = str(statement.compile(dialect=postgresql.dialect()))
+    assert "documents.assistant_id" in sql
+    assert "WHERE" in sql
+    assert "ORDER BY" in sql
+    assert assistant_id in statement.compile().params.values()
+
+
+@pytest.mark.asyncio
+async def test_get_document_maps_model_or_none() -> None:
+    document = Document(assistant_id=uuid4(), original_filename="handbook.pdf")
+    session = FakeSession(get_result=document_model(document))
+    repository = PostgresDocumentRepository(session_factory(session))
+
+    assert await repository.get_by_id(document.id) == document
+    assert session.get_calls == [(DocumentModel, document.id)]
+
+    session.get_result = None
+    assert await repository.get_by_id(uuid4()) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_document_reports_whether_row_existed() -> None:
+    document = Document(assistant_id=uuid4(), original_filename="handbook.pdf")
+    stored = document_model(document)
+    session = FakeSession(get_result=stored)
+    repository = PostgresDocumentRepository(session_factory(session))
+
+    assert await repository.delete(document.id) is True
+    assert session.deleted == [stored]
+
+    missing_session = FakeSession()
+    repository = PostgresDocumentRepository(session_factory(missing_session))
     assert await repository.delete(uuid4()) is False
     assert missing_session.deleted == []
 

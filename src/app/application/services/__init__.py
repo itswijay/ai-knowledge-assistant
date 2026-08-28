@@ -1,5 +1,6 @@
 from app.application.services.authorization import (
     AssistantAccessChecker,
+    DocumentAccessChecker,
     OrganizationAccessChecker,
 )
 from app.application.services.grounded_prompt import (
@@ -11,6 +12,7 @@ from app.application.services.text_chunker import ChunkDraft, TextChunker, WordC
 __all__ = [
     "AssistantAccessChecker",
     "ChunkDraft",
+    "DocumentAccessChecker",
     "GroundedPrompt",
     "GroundedPromptBuilder",
     "OrganizationAccessChecker",

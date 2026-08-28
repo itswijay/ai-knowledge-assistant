@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.application.services import (
     AssistantAccessChecker,
+    DocumentAccessChecker,
     GroundedPromptBuilder,
     OrganizationAccessChecker,
     WordChunker,
@@ -16,10 +17,12 @@ from app.application.use_cases import (
     CreateAssistant,
     CreateOrganization,
     DeleteAssistant,
+    DeleteDocument,
     GetAssistant,
     GetOrganization,
     IngestDocument,
     ListAssistants,
+    ListDocuments,
     ListOrganizations,
     UpdateAssistant,
 )
@@ -30,6 +33,7 @@ from app.domain.ports import AccessTokenVerifier
 from app.infrastructure.ai import GeminiEmbeddingProvider, GeminiLLMProvider
 from app.infrastructure.auth import SupabaseJWTVerifier
 from app.infrastructure.database.assistant_repository import PostgresAssistantRepository
+from app.infrastructure.database.document_repository import PostgresDocumentRepository
 from app.infrastructure.database.organization_repository import (
     PostgresOrganizationMemberRepository,
     PostgresOrganizationRepository,
@@ -60,6 +64,8 @@ class ApplicationContainer:
     get_assistant: GetAssistant
     update_assistant: UpdateAssistant
     delete_assistant: DeleteAssistant
+    list_documents: ListDocuments
+    delete_document: DeleteDocument
 
     async def close(self) -> None:
         try:
@@ -97,10 +103,15 @@ def build_application_container(settings: Settings) -> ApplicationContainer:
     organization_repository = PostgresOrganizationRepository(session_factory)
     membership_repository = PostgresOrganizationMemberRepository(session_factory)
     assistant_repository = PostgresAssistantRepository(session_factory)
+    document_repository = PostgresDocumentRepository(session_factory)
     organization_access_checker = OrganizationAccessChecker(membership_repository)
     assistant_access_checker = AssistantAccessChecker(
         assistant_repository,
         membership_repository,
+    )
+    document_access_checker = DocumentAccessChecker(
+        document_repository,
+        assistant_access_checker,
     )
     ingest_document = IngestDocument(
         validator=PdfUploadValidator(settings.max_upload_size_mb),
@@ -148,6 +159,14 @@ def build_application_container(settings: Settings) -> ApplicationContainer:
         delete_assistant=DeleteAssistant(
             assistant_repository,
             assistant_access_checker,
+        ),
+        list_documents=ListDocuments(
+            document_repository,
+            assistant_access_checker,
+        ),
+        delete_document=DeleteDocument(
+            document_repository,
+            document_access_checker,
         ),
     )
 
@@ -233,6 +252,18 @@ def get_delete_assistant(
     container: Annotated[ApplicationContainer, Depends(get_application_container)],
 ) -> DeleteAssistant:
     return container.delete_assistant
+
+
+def get_list_documents(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> ListDocuments:
+    return container.list_documents
+
+
+def get_delete_document(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> DeleteDocument:
+    return container.delete_document
 
 
 def get_max_upload_size_bytes(

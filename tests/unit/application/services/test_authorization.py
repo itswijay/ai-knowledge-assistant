@@ -5,11 +5,18 @@ import pytest
 
 from app.application.services import (
     AssistantAccessChecker,
+    DocumentAccessChecker,
     OrganizationAccessChecker,
 )
-from app.domain.entities import Assistant, OrganizationMember, OrganizationRole
+from app.domain.entities import (
+    Assistant,
+    Document,
+    OrganizationMember,
+    OrganizationRole,
+)
 from app.domain.errors import (
     AssistantNotFoundError,
+    DocumentNotFoundError,
     InsufficientPermissionError,
     OrganizationNotFoundError,
 )
@@ -37,6 +44,16 @@ class FakeAssistantRepository:
     async def get_by_id(self, assistant_id: UUID) -> Assistant | None:
         self.calls.append(assistant_id)
         return self.assistants.get(assistant_id)
+
+
+@dataclass
+class FakeDocumentRepository:
+    documents: dict[UUID, Document]
+    calls: list[UUID] = field(default_factory=list)
+
+    async def get_by_id(self, document_id: UUID) -> Document | None:
+        self.calls.append(document_id)
+        return self.documents.get(document_id)
 
 
 def membership(
@@ -244,3 +261,138 @@ async def test_assistant_manager_access_rejects_member_role() -> None:
             FakeAssistantRepository({assistant.id: assistant}),
             membership_repository,
         ).require_manager(user_id=user_id, assistant_id=assistant.id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", list(OrganizationRole))
+async def test_document_member_access_accepts_every_role(
+    role: OrganizationRole,
+) -> None:
+    user_id = uuid4()
+    assistant = Assistant(organization_id=uuid4(), name="Support")
+    document = Document(
+        assistant_id=assistant.id,
+        original_filename="handbook.pdf",
+    )
+    document_repository = FakeDocumentRepository({document.id: document})
+    assistant_checker = AssistantAccessChecker(
+        FakeAssistantRepository({assistant.id: assistant}),
+        FakeMembershipRepository(
+            {
+                (assistant.organization_id, user_id): membership(
+                    organization_id=assistant.organization_id,
+                    user_id=user_id,
+                    role=role,
+                )
+            }
+        ),
+    )
+
+    actual = await DocumentAccessChecker(
+        document_repository,
+        assistant_checker,
+    ).require_member(user_id=user_id, document_id=document.id)
+
+    assert actual == document
+    assert document_repository.calls == [document.id]
+
+
+@pytest.mark.asyncio
+async def test_document_access_conceals_missing_document() -> None:
+    document_id = uuid4()
+    assistant_repository = FakeAssistantRepository({})
+    checker = DocumentAccessChecker(
+        FakeDocumentRepository({}),
+        AssistantAccessChecker(
+            assistant_repository,
+            FakeMembershipRepository({}),
+        ),
+    )
+
+    with pytest.raises(DocumentNotFoundError, match="^Document not found$"):
+        await checker.require_member(user_id=uuid4(), document_id=document_id)
+
+    assert assistant_repository.calls == []
+
+
+@pytest.mark.asyncio
+async def test_document_access_conceals_cross_tenant_document() -> None:
+    assistant = Assistant(organization_id=uuid4(), name="Private")
+    document = Document(
+        assistant_id=assistant.id,
+        original_filename="private.pdf",
+    )
+    checker = DocumentAccessChecker(
+        FakeDocumentRepository({document.id: document}),
+        AssistantAccessChecker(
+            FakeAssistantRepository({assistant.id: assistant}),
+            FakeMembershipRepository({}),
+        ),
+    )
+
+    with pytest.raises(DocumentNotFoundError, match="^Document not found$"):
+        await checker.require_member(user_id=uuid4(), document_id=document.id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "role",
+    [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+)
+async def test_document_manager_access_accepts_privileged_roles(
+    role: OrganizationRole,
+) -> None:
+    user_id = uuid4()
+    assistant = Assistant(organization_id=uuid4(), name="Support")
+    document = Document(
+        assistant_id=assistant.id,
+        original_filename="handbook.pdf",
+    )
+    checker = DocumentAccessChecker(
+        FakeDocumentRepository({document.id: document}),
+        AssistantAccessChecker(
+            FakeAssistantRepository({assistant.id: assistant}),
+            FakeMembershipRepository(
+                {
+                    (assistant.organization_id, user_id): membership(
+                        organization_id=assistant.organization_id,
+                        user_id=user_id,
+                        role=role,
+                    )
+                }
+            ),
+        ),
+    )
+
+    assert (
+        await checker.require_manager(user_id=user_id, document_id=document.id)
+        == document
+    )
+
+
+@pytest.mark.asyncio
+async def test_document_manager_access_rejects_member_role() -> None:
+    user_id = uuid4()
+    assistant = Assistant(organization_id=uuid4(), name="Support")
+    document = Document(
+        assistant_id=assistant.id,
+        original_filename="handbook.pdf",
+    )
+    checker = DocumentAccessChecker(
+        FakeDocumentRepository({document.id: document}),
+        AssistantAccessChecker(
+            FakeAssistantRepository({assistant.id: assistant}),
+            FakeMembershipRepository(
+                {
+                    (assistant.organization_id, user_id): membership(
+                        organization_id=assistant.organization_id,
+                        user_id=user_id,
+                        role=OrganizationRole.MEMBER,
+                    )
+                }
+            ),
+        ),
+    )
+
+    with pytest.raises(InsufficientPermissionError):
+        await checker.require_manager(user_id=user_id, document_id=document.id)
