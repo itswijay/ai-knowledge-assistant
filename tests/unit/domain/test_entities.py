@@ -2,7 +2,7 @@ from collections.abc import Callable
 from dataclasses import FrozenInstanceError
 from datetime import UTC
 from math import inf, nan
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -17,14 +17,19 @@ from app.domain.entities import (
 
 
 def test_document_has_generated_identity_and_utc_timestamp() -> None:
-    document = Document(original_filename="handbook.pdf")
+    assistant_id = uuid4()
+    document = Document(
+        assistant_id=assistant_id,
+        original_filename="handbook.pdf",
+    )
 
     assert document.id
+    assert document.assistant_id == assistant_id
     assert document.created_at.tzinfo is UTC
 
 
 def test_document_is_immutable() -> None:
-    document = Document(original_filename="handbook.pdf")
+    document = Document(assistant_id=uuid4(), original_filename="handbook.pdf")
 
     with pytest.raises(FrozenInstanceError):
         document.original_filename = "changed.pdf"  # type: ignore[misc]
@@ -33,7 +38,12 @@ def test_document_is_immutable() -> None:
 @pytest.mark.parametrize("filename", ["", "   "])
 def test_document_rejects_blank_filename(filename: str) -> None:
     with pytest.raises(ValueError, match="original_filename"):
-        Document(original_filename=filename)
+        Document(assistant_id=uuid4(), original_filename=filename)
+
+
+def test_document_rejects_nil_assistant_id() -> None:
+    with pytest.raises(ValueError, match="assistant_id"):
+        Document(assistant_id=UUID(int=0), original_filename="handbook.pdf")
 
 
 @pytest.mark.parametrize(

@@ -4,6 +4,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -67,6 +68,8 @@ def load_evaluation_suite(path: Path) -> EvaluationSuite:
 async def run_evaluation(
     suite: EvaluationSuite,
     *,
+    user_id: UUID,
+    assistant_id: UUID,
     output_path: Path,
     ingest_sample: bool,
 ) -> bool:
@@ -75,6 +78,8 @@ async def run_evaluation(
         if ingest_sample:
             await container.ingest_document.execute(
                 IngestDocumentCommand(
+                    user_id=user_id,
+                    assistant_id=assistant_id,
                     filename=suite.document,
                     content=build_sample_pdf(suite.pages),
                 )
@@ -101,7 +106,19 @@ async def run_evaluation(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the Phase 1 RAG evaluation")
+    parser = argparse.ArgumentParser(description="Run the RAG evaluation")
+    parser.add_argument(
+        "--user-id",
+        type=UUID,
+        required=True,
+        help="Authenticated owner or admin user UUID",
+    )
+    parser.add_argument(
+        "--assistant-id",
+        type=UUID,
+        required=True,
+        help="Assistant UUID used for ingestion",
+    )
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument(
@@ -118,6 +135,8 @@ def main() -> int:
     targets_met = asyncio.run(
         run_evaluation(
             suite,
+            user_id=args.user_id,
+            assistant_id=args.assistant_id,
             output_path=args.output,
             ingest_sample=not args.skip_ingestion,
         )

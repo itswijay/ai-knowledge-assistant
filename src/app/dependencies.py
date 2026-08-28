@@ -108,6 +108,7 @@ def build_application_container(settings: Settings) -> ApplicationContainer:
         chunker=WordChunker(),
         embedding_provider=embedding_provider,
         vector_repository=vector_repository,
+        assistant_access_checker=assistant_access_checker,
     )
     ask_question = AskQuestion(
         embedding_provider=embedding_provider,

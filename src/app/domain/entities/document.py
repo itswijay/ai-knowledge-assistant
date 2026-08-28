@@ -8,11 +8,14 @@ from app.domain.types import EmbeddingVector
 
 @dataclass(frozen=True, slots=True)
 class Document:
+    assistant_id: UUID
     original_filename: str
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
+        if self.assistant_id.int == 0:
+            raise ValueError("assistant_id must not be the nil UUID")
         if not self.original_filename.strip():
             raise ValueError("original_filename must not be blank")
 

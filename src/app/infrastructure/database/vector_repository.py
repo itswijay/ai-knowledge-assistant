@@ -35,6 +35,7 @@ class PostgresVectorRepository:
 
         document_model = DocumentModel(
             id=document.id,
+            assistant_id=document.assistant_id,
             original_filename=document.original_filename,
             created_at=document.created_at,
             chunks=[self._to_chunk_model(chunk) for chunk in chunks],

@@ -55,11 +55,25 @@ def test_tenant_ownership_foreign_keys_cascade() -> None:
     assistant_foreign_key = next(
         iter(AssistantModel.__table__.c.organization_id.foreign_keys)
     )
+    document_foreign_key = next(
+        iter(DocumentModel.__table__.c.assistant_id.foreign_keys)
+    )
 
     assert membership_foreign_key.target_fullname == "organizations.id"
     assert membership_foreign_key.ondelete == "CASCADE"
     assert assistant_foreign_key.target_fullname == "organizations.id"
     assert assistant_foreign_key.ondelete == "CASCADE"
+    assert document_foreign_key.target_fullname == "assistants.id"
+    assert document_foreign_key.ondelete == "CASCADE"
+
+
+def test_document_model_has_required_assistant_scope() -> None:
+    assistant_id = DocumentModel.__table__.c.assistant_id
+
+    assert assistant_id.nullable is False
+    assert {index.name for index in DocumentModel.__table__.indexes} == {
+        "ix_documents_assistant_id"
+    }
 
 
 def test_assistant_model_matches_bounded_customization_schema() -> None:
@@ -152,6 +166,7 @@ def test_models_compile_to_postgresql_vector_schema() -> None:
     assert "CREATE TABLE documents" in document_ddl
     assert "CREATE TABLE document_chunks" in chunk_ddl
     assert "original_filename VARCHAR(255) NOT NULL" in document_ddl
+    assert "assistant_id UUID NOT NULL" in document_ddl
     assert "original_filename" not in chunk_ddl
     assert "embedding VECTOR(768) NOT NULL" in chunk_ddl
     assert "CREATE TABLE organizations" in organization_ddl

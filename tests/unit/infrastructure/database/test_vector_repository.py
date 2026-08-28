@@ -106,7 +106,7 @@ def build_chunk(document: Document) -> DocumentChunk:
 async def test_save_document_maps_domain_entities_atomically() -> None:
     session = FakeSession()
     repository = build_repository(session)
-    document = Document(original_filename="warranty.pdf")
+    document = Document(assistant_id=uuid4(), original_filename="warranty.pdf")
     chunk = build_chunk(document)
 
     await repository.save_document(document, [chunk])
@@ -116,6 +116,7 @@ async def test_save_document_maps_domain_entities_atomically() -> None:
     stored_document = session.added[0]
     assert isinstance(stored_document, DocumentModel)
     assert stored_document.id == document.id
+    assert stored_document.assistant_id == document.assistant_id
     assert stored_document.original_filename == "warranty.pdf"
     assert len(stored_document.chunks) == 1
     assert stored_document.chunks[0].id == chunk.id
@@ -127,7 +128,7 @@ async def test_save_document_maps_domain_entities_atomically() -> None:
 async def test_save_document_rejects_inconsistent_chunk_metadata() -> None:
     session = FakeSession()
     repository = build_repository(session)
-    document = Document(original_filename="warranty.pdf")
+    document = Document(assistant_id=uuid4(), original_filename="warranty.pdf")
     wrong_document_chunk = DocumentChunk(
         document_id=uuid4(),
         page_number=1,

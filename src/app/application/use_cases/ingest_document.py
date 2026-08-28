@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.application.errors import NoExtractableTextError
-from app.application.services import TextChunker
+from app.application.services import AssistantAccessChecker, TextChunker
 from app.domain.entities import Document, DocumentChunk
 from app.domain.errors import EmbeddingGenerationError
 from app.domain.ports import (
@@ -15,6 +15,8 @@ from app.domain.ports import (
 
 @dataclass(frozen=True, slots=True)
 class IngestDocumentCommand:
+    user_id: UUID
+    assistant_id: UUID
     filename: str
     content: bytes
 
@@ -22,6 +24,7 @@ class IngestDocumentCommand:
 @dataclass(frozen=True, slots=True)
 class IngestDocumentResult:
     document_id: UUID
+    assistant_id: UUID
     original_filename: str
     processed_page_count: int
     chunk_count: int
@@ -36,14 +39,20 @@ class IngestDocument:
         chunker: TextChunker,
         embedding_provider: EmbeddingProvider,
         vector_repository: VectorRepository,
+        assistant_access_checker: AssistantAccessChecker,
     ) -> None:
         self._validator = validator
         self._parser = parser
         self._chunker = chunker
         self._embedding_provider = embedding_provider
         self._vector_repository = vector_repository
+        self._assistant_access_checker = assistant_access_checker
 
     async def execute(self, command: IngestDocumentCommand) -> IngestDocumentResult:
+        await self._assistant_access_checker.require_manager(
+            user_id=command.user_id,
+            assistant_id=command.assistant_id,
+        )
         safe_filename = self._validator.validate(command.filename, command.content)
         pages = tuple(self._parser.parse(command.content))
         if not pages:
@@ -65,7 +74,10 @@ class IngestDocument:
                 "Embedding provider returned an unexpected number of vectors"
             )
 
-        document = Document(original_filename=safe_filename)
+        document = Document(
+            assistant_id=command.assistant_id,
+            original_filename=safe_filename,
+        )
         chunks = tuple(
             DocumentChunk(
                 document_id=document.id,
@@ -80,6 +92,7 @@ class IngestDocument:
 
         return IngestDocumentResult(
             document_id=document.id,
+            assistant_id=document.assistant_id,
             original_filename=document.original_filename,
             processed_page_count=len(pages),
             chunk_count=len(chunks),

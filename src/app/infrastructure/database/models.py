@@ -171,6 +171,11 @@ class AssistantModel(Base):
         server_default=func.now(),
     )
     organization: Mapped[OrganizationModel] = relationship(back_populates="assistants")
+    documents: Mapped[list[DocumentModel]] = relationship(
+        back_populates="assistant",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class DocumentModel(Base):
@@ -180,12 +185,18 @@ class DocumentModel(Base):
             "length(btrim(original_filename)) > 0",
             name="original_filename_not_blank",
         ),
+        Index("ix_documents_assistant_id", "assistant_id"),
     )
 
     id: Mapped[UUID] = mapped_column(
         PostgreSQLUUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
+    )
+    assistant_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("assistants.id", ondelete="CASCADE"),
+        nullable=False,
     )
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -199,6 +210,7 @@ class DocumentModel(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    assistant: Mapped[AssistantModel] = relationship(back_populates="documents")
 
 
 class DocumentChunkModel(Base):

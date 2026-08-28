@@ -1,13 +1,24 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from uuid import UUID, uuid4
 
 import pytest
 
 from app.application.errors import NoExtractableTextError
 from app.application.services import WordChunker
 from app.application.use_cases import IngestDocument, IngestDocumentCommand
-from app.domain.entities import Document, DocumentChunk, DocumentPage, RetrievedChunk
-from app.domain.errors import EmbeddingGenerationError
+from app.domain.entities import (
+    Assistant,
+    Document,
+    DocumentChunk,
+    DocumentPage,
+    RetrievedChunk,
+)
+from app.domain.errors import (
+    AssistantNotFoundError,
+    EmbeddingGenerationError,
+    InsufficientPermissionError,
+)
 from app.domain.types import EmbeddingVector
 
 
@@ -70,6 +81,24 @@ class FakeVectorRepository:
         raise AssertionError("Vector search is not part of document ingestion")
 
 
+@dataclass
+class FakeAssistantAccessChecker:
+    assistant: Assistant
+    error: Exception | None = None
+    calls: list[tuple[UUID, UUID]] = field(default_factory=list)
+
+    async def require_manager(
+        self,
+        *,
+        user_id: UUID,
+        assistant_id: UUID,
+    ) -> Assistant:
+        self.calls.append((user_id, assistant_id))
+        if self.error is not None:
+            raise self.error
+        return self.assistant
+
+
 def build_use_case(
     *,
     pages: Sequence[DocumentPage],
@@ -80,19 +109,24 @@ def build_use_case(
     FakeDocumentParser,
     FakeEmbeddingProvider,
     FakeVectorRepository,
+    FakeAssistantAccessChecker,
 ]:
     validator = FakeDocumentValidator()
     parser = FakeDocumentParser(pages=pages)
     embedding_provider = FakeEmbeddingProvider(embeddings=embeddings)
     repository = FakeVectorRepository()
+    access_checker = FakeAssistantAccessChecker(
+        Assistant(organization_id=uuid4(), name="Support")
+    )
     use_case = IngestDocument(
         validator=validator,
         parser=parser,
         chunker=WordChunker(chunk_size_words=3, overlap_words=1),
         embedding_provider=embedding_provider,
         vector_repository=repository,
+        assistant_access_checker=access_checker,
     )
-    return use_case, validator, parser, embedding_provider, repository
+    return use_case, validator, parser, embedding_provider, repository, access_checker
 
 
 @pytest.mark.asyncio
@@ -101,25 +135,37 @@ async def test_ingestion_orchestrates_processing_and_persistence() -> None:
         DocumentPage(page_number=1, content="one two three four"),
         DocumentPage(page_number=3, content="five six seven"),
     )
-    use_case, validator, parser, embeddings, repository = build_use_case(pages=pages)
+    use_case, validator, parser, embeddings, repository, access_checker = (
+        build_use_case(pages=pages)
+    )
     content = b"%PDF-test"
+    user_id = uuid4()
+    assistant_id = access_checker.assistant.id
 
     result = await use_case.execute(
-        IngestDocumentCommand(filename="../unsafe.pdf", content=content)
+        IngestDocumentCommand(
+            user_id=user_id,
+            assistant_id=assistant_id,
+            filename="../unsafe.pdf",
+            content=content,
+        )
     )
 
+    assert access_checker.calls == [(user_id, assistant_id)]
     assert validator.calls == [("../unsafe.pdf", content)]
     assert parser.calls == [content]
     assert embeddings.document_calls == [
         ["one two three", "three four", "five six seven"]
     ]
     assert result.original_filename == "warranty.pdf"
+    assert result.assistant_id == assistant_id
     assert result.processed_page_count == 2
     assert result.chunk_count == 3
     assert len(repository.saved) == 1
 
     stored_document, stored_chunks = repository.saved[0]
     assert stored_document.id == result.document_id
+    assert stored_document.assistant_id == assistant_id
     assert stored_document.original_filename == "warranty.pdf"
     assert [chunk.document_id for chunk in stored_chunks] == [
         stored_document.id,
@@ -134,11 +180,16 @@ async def test_ingestion_orchestrates_processing_and_persistence() -> None:
 
 @pytest.mark.asyncio
 async def test_no_extractable_pages_stops_before_embedding_and_persistence() -> None:
-    use_case, _, _, embeddings, repository = build_use_case(pages=[])
+    use_case, _, _, embeddings, repository, access_checker = build_use_case(pages=[])
 
     with pytest.raises(NoExtractableTextError, match="no extractable text"):
         await use_case.execute(
-            IngestDocumentCommand(filename="empty.pdf", content=b"%PDF-empty")
+            IngestDocumentCommand(
+                user_id=uuid4(),
+                assistant_id=access_checker.assistant.id,
+                filename="empty.pdf",
+                content=b"%PDF-empty",
+            )
         )
 
     assert embeddings.document_calls == []
@@ -148,14 +199,53 @@ async def test_no_extractable_pages_stops_before_embedding_and_persistence() -> 
 @pytest.mark.asyncio
 async def test_embedding_count_mismatch_stops_before_persistence() -> None:
     pages = [DocumentPage(page_number=1, content="one two three four")]
-    use_case, _, _, _, repository = build_use_case(
+    use_case, _, _, _, repository, access_checker = build_use_case(
         pages=pages,
         embeddings=[(0.1,)],
     )
 
     with pytest.raises(EmbeddingGenerationError, match="unexpected number"):
         await use_case.execute(
-            IngestDocumentCommand(filename="document.pdf", content=b"%PDF-test")
+            IngestDocumentCommand(
+                user_id=uuid4(),
+                assistant_id=access_checker.assistant.id,
+                filename="document.pdf",
+                content=b"%PDF-test",
+            )
         )
 
+    assert repository.saved == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        InsufficientPermissionError("Owner or admin role required"),
+        AssistantNotFoundError("Assistant not found"),
+    ],
+)
+async def test_unauthorized_ingestion_stops_before_file_processing(
+    error: Exception,
+) -> None:
+    use_case, validator, parser, embeddings, repository, access_checker = (
+        build_use_case(
+            pages=[DocumentPage(page_number=1, content="content")],
+        )
+    )
+    access_checker.error = error
+
+    with pytest.raises(type(error), match=str(error)):
+        await use_case.execute(
+            IngestDocumentCommand(
+                user_id=uuid4(),
+                assistant_id=access_checker.assistant.id,
+                filename="private.pdf",
+                content=b"%PDF-private",
+            )
+        )
+
+    assert validator.calls == []
+    assert parser.calls == []
+    assert embeddings.document_calls == []
     assert repository.saved == []
