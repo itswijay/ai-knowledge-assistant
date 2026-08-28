@@ -18,6 +18,10 @@ class ExpiredAccessTokenError(InvalidAccessTokenError):
     """An otherwise valid access token is no longer active."""
 
 
+class AccessTokenVerificationError(Exception):
+    """Access-token verification could not run because its key source failed."""
+
+
 class DocumentProcessingError(Exception):
     """Base error for expected document-processing failures."""
 

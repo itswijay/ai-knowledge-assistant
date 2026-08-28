@@ -5,6 +5,7 @@ import pytest
 
 from app.domain.entities import AuthenticatedUser
 from app.domain.errors import (
+    AccessTokenVerificationError,
     AuthenticationError,
     ExpiredAccessTokenError,
     InvalidAccessTokenError,
@@ -95,3 +96,9 @@ def test_specific_token_errors_are_invalid_token_errors(
     error_type: type[InvalidAccessTokenError],
 ) -> None:
     assert isinstance(error_type("Authentication failed"), InvalidAccessTokenError)
+
+
+def test_verification_service_failure_is_not_a_user_authentication_error() -> None:
+    error = AccessTokenVerificationError("Verification unavailable")
+
+    assert not isinstance(error, AuthenticationError)
