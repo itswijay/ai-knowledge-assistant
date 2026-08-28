@@ -10,6 +10,7 @@ from app.presentation.api.routes.authentication import router as authentication_
 from app.presentation.api.routes.chat import router as chat_router
 from app.presentation.api.routes.documents import router as documents_router
 from app.presentation.api.routes.health import router as health_router
+from app.presentation.api.routes.organizations import router as organizations_router
 
 
 @asynccontextmanager
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(application)
     application.include_router(health_router)
     application.include_router(authentication_router)
+    application.include_router(organizations_router)
     application.include_router(documents_router)
     application.include_router(chat_router)
     return application

@@ -4,12 +4,16 @@ from fastapi.responses import JSONResponse
 from app.domain.errors import (
     AccessTokenVerificationError,
     AuthenticationError,
+    AuthorizationError,
     DocumentProcessingError,
     DocumentTooLargeError,
     EmbeddingGenerationError,
     ExpiredAccessTokenError,
     LLMGenerationError,
     MissingAccessTokenError,
+    ResourceConflictError,
+    ResourceNotFoundError,
+    TenantRepositoryError,
     VectorRepositoryError,
 )
 
@@ -38,6 +42,46 @@ async def access_token_verification_handler(
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"detail": "Authentication service is temporarily unavailable"},
+    )
+
+
+async def resource_not_found_handler(
+    request: Request,
+    error: ResourceNotFoundError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": str(error) or "Resource not found"},
+    )
+
+
+async def authorization_handler(
+    request: Request,
+    error: AuthorizationError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={"detail": str(error) or "Insufficient permission"},
+    )
+
+
+async def resource_conflict_handler(
+    request: Request,
+    error: ResourceConflictError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": "Resource conflicts with existing data"},
+    )
+
+
+async def tenant_repository_handler(
+    request: Request,
+    error: TenantRepositoryError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "Data service is temporarily unavailable"},
     )
 
 
@@ -99,6 +143,22 @@ def register_exception_handlers(application: FastAPI) -> None:
     application.add_exception_handler(
         AccessTokenVerificationError,
         access_token_verification_handler,
+    )
+    application.add_exception_handler(
+        ResourceNotFoundError,
+        resource_not_found_handler,
+    )
+    application.add_exception_handler(
+        AuthorizationError,
+        authorization_handler,
+    )
+    application.add_exception_handler(
+        ResourceConflictError,
+        resource_conflict_handler,
+    )
+    application.add_exception_handler(
+        TenantRepositoryError,
+        tenant_repository_handler,
     )
     application.add_exception_handler(
         DocumentTooLargeError,

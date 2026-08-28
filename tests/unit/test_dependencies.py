@@ -1,6 +1,12 @@
 import pytest
 
-from app.application.use_cases import AskQuestion, IngestDocument
+from app.application.use_cases import (
+    AskQuestion,
+    CreateOrganization,
+    GetOrganization,
+    IngestDocument,
+    ListOrganizations,
+)
 from app.core.config import Settings
 from app.dependencies import build_application_container
 from app.infrastructure.ai import GeminiEmbeddingProvider, GeminiLLMProvider
@@ -20,6 +26,9 @@ async def test_application_container_wires_and_closes_resources() -> None:
 
     assert isinstance(container.ingest_document, IngestDocument)
     assert isinstance(container.ask_question, AskQuestion)
+    assert isinstance(container.create_organization, CreateOrganization)
+    assert isinstance(container.list_organizations, ListOrganizations)
+    assert isinstance(container.get_organization, GetOrganization)
     assert isinstance(container.access_token_verifier, SupabaseJWTVerifier)
     assert isinstance(container.embedding_provider, GeminiEmbeddingProvider)
     assert isinstance(container.llm_provider, GeminiLLMProvider)

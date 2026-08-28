@@ -5,14 +5,28 @@ from fastapi import Depends, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from app.application.services import GroundedPromptBuilder, WordChunker
-from app.application.use_cases import AskQuestion, IngestDocument
+from app.application.services import (
+    GroundedPromptBuilder,
+    OrganizationAccessChecker,
+    WordChunker,
+)
+from app.application.use_cases import (
+    AskQuestion,
+    CreateOrganization,
+    GetOrganization,
+    IngestDocument,
+    ListOrganizations,
+)
 from app.core.config import Settings, get_settings
 from app.domain.entities import AuthenticatedUser
 from app.domain.errors import MissingAccessTokenError
 from app.domain.ports import AccessTokenVerifier
 from app.infrastructure.ai import GeminiEmbeddingProvider, GeminiLLMProvider
 from app.infrastructure.auth import SupabaseJWTVerifier
+from app.infrastructure.database.organization_repository import (
+    PostgresOrganizationMemberRepository,
+    PostgresOrganizationRepository,
+)
 from app.infrastructure.database.session import (
     create_database_engine,
     create_session_factory,
@@ -31,6 +45,9 @@ class ApplicationContainer:
     llm_provider: GeminiLLMProvider
     ingest_document: IngestDocument
     ask_question: AskQuestion
+    create_organization: CreateOrganization
+    list_organizations: ListOrganizations
+    get_organization: GetOrganization
 
     async def close(self) -> None:
         try:
@@ -65,6 +82,9 @@ def build_application_container(settings: Settings) -> ApplicationContainer:
         session_factory,
         embedding_dimension=settings.embedding_dimension,
     )
+    organization_repository = PostgresOrganizationRepository(session_factory)
+    membership_repository = PostgresOrganizationMemberRepository(session_factory)
+    organization_access_checker = OrganizationAccessChecker(membership_repository)
     ingest_document = IngestDocument(
         validator=PdfUploadValidator(settings.max_upload_size_mb),
         parser=PyPdfDocumentParser(),
@@ -87,6 +107,12 @@ def build_application_container(settings: Settings) -> ApplicationContainer:
         llm_provider=llm_provider,
         ingest_document=ingest_document,
         ask_question=ask_question,
+        create_organization=CreateOrganization(organization_repository),
+        list_organizations=ListOrganizations(organization_repository),
+        get_organization=GetOrganization(
+            organization_repository,
+            organization_access_checker,
+        ),
     )
 
 
@@ -123,6 +149,24 @@ def get_ask_question(
     container: Annotated[ApplicationContainer, Depends(get_application_container)],
 ) -> AskQuestion:
     return container.ask_question
+
+
+def get_create_organization(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> CreateOrganization:
+    return container.create_organization
+
+
+def get_list_organizations(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> ListOrganizations:
+    return container.list_organizations
+
+
+def get_get_organization(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> GetOrganization:
+    return container.get_organization
 
 
 def get_max_upload_size_bytes(
