@@ -2,10 +2,15 @@ import pytest
 
 from app.application.use_cases import (
     AskQuestion,
+    CreateAssistant,
     CreateOrganization,
+    DeleteAssistant,
+    GetAssistant,
     GetOrganization,
     IngestDocument,
+    ListAssistants,
     ListOrganizations,
+    UpdateAssistant,
 )
 from app.core.config import Settings
 from app.dependencies import build_application_container
@@ -29,6 +34,11 @@ async def test_application_container_wires_and_closes_resources() -> None:
     assert isinstance(container.create_organization, CreateOrganization)
     assert isinstance(container.list_organizations, ListOrganizations)
     assert isinstance(container.get_organization, GetOrganization)
+    assert isinstance(container.create_assistant, CreateAssistant)
+    assert isinstance(container.list_assistants, ListAssistants)
+    assert isinstance(container.get_assistant, GetAssistant)
+    assert isinstance(container.update_assistant, UpdateAssistant)
+    assert isinstance(container.delete_assistant, DeleteAssistant)
     assert isinstance(container.access_token_verifier, SupabaseJWTVerifier)
     assert isinstance(container.embedding_provider, GeminiEmbeddingProvider)
     assert isinstance(container.llm_provider, GeminiLLMProvider)

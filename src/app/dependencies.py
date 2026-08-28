@@ -6,16 +6,22 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.application.services import (
+    AssistantAccessChecker,
     GroundedPromptBuilder,
     OrganizationAccessChecker,
     WordChunker,
 )
 from app.application.use_cases import (
     AskQuestion,
+    CreateAssistant,
     CreateOrganization,
+    DeleteAssistant,
+    GetAssistant,
     GetOrganization,
     IngestDocument,
+    ListAssistants,
     ListOrganizations,
+    UpdateAssistant,
 )
 from app.core.config import Settings, get_settings
 from app.domain.entities import AuthenticatedUser
@@ -23,6 +29,7 @@ from app.domain.errors import MissingAccessTokenError
 from app.domain.ports import AccessTokenVerifier
 from app.infrastructure.ai import GeminiEmbeddingProvider, GeminiLLMProvider
 from app.infrastructure.auth import SupabaseJWTVerifier
+from app.infrastructure.database.assistant_repository import PostgresAssistantRepository
 from app.infrastructure.database.organization_repository import (
     PostgresOrganizationMemberRepository,
     PostgresOrganizationRepository,
@@ -48,6 +55,11 @@ class ApplicationContainer:
     create_organization: CreateOrganization
     list_organizations: ListOrganizations
     get_organization: GetOrganization
+    create_assistant: CreateAssistant
+    list_assistants: ListAssistants
+    get_assistant: GetAssistant
+    update_assistant: UpdateAssistant
+    delete_assistant: DeleteAssistant
 
     async def close(self) -> None:
         try:
@@ -84,7 +96,12 @@ def build_application_container(settings: Settings) -> ApplicationContainer:
     )
     organization_repository = PostgresOrganizationRepository(session_factory)
     membership_repository = PostgresOrganizationMemberRepository(session_factory)
+    assistant_repository = PostgresAssistantRepository(session_factory)
     organization_access_checker = OrganizationAccessChecker(membership_repository)
+    assistant_access_checker = AssistantAccessChecker(
+        assistant_repository,
+        membership_repository,
+    )
     ingest_document = IngestDocument(
         validator=PdfUploadValidator(settings.max_upload_size_mb),
         parser=PyPdfDocumentParser(),
@@ -112,6 +129,23 @@ def build_application_container(settings: Settings) -> ApplicationContainer:
         get_organization=GetOrganization(
             organization_repository,
             organization_access_checker,
+        ),
+        create_assistant=CreateAssistant(
+            assistant_repository,
+            organization_access_checker,
+        ),
+        list_assistants=ListAssistants(
+            assistant_repository,
+            organization_access_checker,
+        ),
+        get_assistant=GetAssistant(assistant_access_checker),
+        update_assistant=UpdateAssistant(
+            assistant_repository,
+            assistant_access_checker,
+        ),
+        delete_assistant=DeleteAssistant(
+            assistant_repository,
+            assistant_access_checker,
         ),
     )
 
@@ -167,6 +201,36 @@ def get_get_organization(
     container: Annotated[ApplicationContainer, Depends(get_application_container)],
 ) -> GetOrganization:
     return container.get_organization
+
+
+def get_create_assistant(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> CreateAssistant:
+    return container.create_assistant
+
+
+def get_list_assistants(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> ListAssistants:
+    return container.list_assistants
+
+
+def get_get_assistant(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> GetAssistant:
+    return container.get_assistant
+
+
+def get_update_assistant(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> UpdateAssistant:
+    return container.update_assistant
+
+
+def get_delete_assistant(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> DeleteAssistant:
+    return container.delete_assistant
 
 
 def get_max_upload_size_bytes(
