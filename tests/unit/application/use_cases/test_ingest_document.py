@@ -73,6 +73,7 @@ class FakeVectorRepository:
 
     async def search_similar(
         self,
+        assistant_id: UUID,
         query_embedding: EmbeddingVector,
         *,
         limit: int,

@@ -1,9 +1,10 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from math import isfinite
+from uuid import UUID
 
 from app.application.constants import FALLBACK_ANSWER
-from app.application.services import GroundedPromptBuilder
+from app.application.services import AssistantAccessChecker, GroundedPromptBuilder
 from app.domain.entities import Answer, RetrievedChunk, SourceReference
 from app.domain.ports import EmbeddingProvider, LLMProvider, VectorRepository
 
@@ -14,6 +15,13 @@ class QuestionAnswerTrace:
     retrieved_chunks: tuple[RetrievedChunk, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class AskQuestionCommand:
+    user_id: UUID
+    assistant_id: UUID
+    question: str
+
+
 class AskQuestion:
     def __init__(
         self,
@@ -22,6 +30,7 @@ class AskQuestion:
         vector_repository: VectorRepository,
         llm_provider: LLMProvider,
         prompt_builder: GroundedPromptBuilder,
+        assistant_access_checker: AssistantAccessChecker,
         top_k: int,
         similarity_threshold: float,
     ) -> None:
@@ -34,33 +43,42 @@ class AskQuestion:
         self._vector_repository = vector_repository
         self._llm_provider = llm_provider
         self._prompt_builder = prompt_builder
+        self._assistant_access_checker = assistant_access_checker
         self._top_k = top_k
         self._similarity_threshold = similarity_threshold
 
-    async def execute(self, question: str) -> Answer:
+    async def execute(self, command: AskQuestionCommand) -> Answer:
         trace = await self._execute(
-            question,
+            command,
             retrieval_minimum_similarity=self._similarity_threshold,
         )
         return trace.answer
 
-    async def execute_with_trace(self, question: str) -> QuestionAnswerTrace:
+    async def execute_with_trace(
+        self,
+        command: AskQuestionCommand,
+    ) -> QuestionAnswerTrace:
         """Answer while retaining low-confidence retrieval data for evaluation."""
 
-        return await self._execute(question, retrieval_minimum_similarity=0.0)
+        return await self._execute(command, retrieval_minimum_similarity=0.0)
 
     async def _execute(
         self,
-        question: str,
+        command: AskQuestionCommand,
         *,
         retrieval_minimum_similarity: float,
     ) -> QuestionAnswerTrace:
-        cleaned_question = question.strip()
+        await self._assistant_access_checker.require_member(
+            user_id=command.user_id,
+            assistant_id=command.assistant_id,
+        )
+        cleaned_question = command.question.strip()
         if not cleaned_question:
             raise ValueError("question must not be blank")
 
         query_embedding = await self._embedding_provider.embed_query(cleaned_question)
         retrieved_chunks = await self._vector_repository.search_similar(
+            command.assistant_id,
             query_embedding,
             limit=self._top_k,
             minimum_similarity=retrieval_minimum_similarity,

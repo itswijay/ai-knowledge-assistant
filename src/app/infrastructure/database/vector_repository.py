@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from math import isfinite
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -50,12 +51,15 @@ class PostgresVectorRepository:
 
     async def search_similar(
         self,
+        assistant_id: UUID,
         query_embedding: EmbeddingVector,
         *,
         limit: int,
         minimum_similarity: float,
     ) -> Sequence[RetrievedChunk]:
         self._validate_embedding(query_embedding)
+        if assistant_id.int == 0:
+            raise ValueError("assistant_id must not be the nil UUID")
         if not 1 <= limit <= 50:
             raise ValueError("limit must be between 1 and 50")
         if not isfinite(minimum_similarity) or not 0.0 <= minimum_similarity <= 1.0:
@@ -66,7 +70,10 @@ class PostgresVectorRepository:
         statement = (
             select(DocumentChunkModel, DocumentModel.original_filename, similarity)
             .join(DocumentModel, DocumentChunkModel.document_id == DocumentModel.id)
-            .where(similarity >= minimum_similarity)
+            .where(
+                DocumentModel.assistant_id == assistant_id,
+                similarity >= minimum_similarity,
+            )
             .order_by(distance.asc(), DocumentChunkModel.id.asc())
             .limit(limit)
         )

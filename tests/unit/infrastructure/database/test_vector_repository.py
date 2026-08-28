@@ -145,6 +145,7 @@ async def test_save_document_rejects_inconsistent_chunk_metadata() -> None:
 
 @pytest.mark.asyncio
 async def test_search_filters_and_orders_inside_postgresql() -> None:
+    assistant_id = uuid4()
     document_id = uuid4()
     chunk_id = uuid4()
     stored_chunk = DocumentChunkModel(
@@ -159,6 +160,7 @@ async def test_search_filters_and_orders_inside_postgresql() -> None:
     repository = build_repository(session)
 
     retrieved = await repository.search_similar(
+        assistant_id,
         (0.1, 0.2, 0.3),
         limit=5,
         minimum_similarity=0.75,
@@ -174,12 +176,14 @@ async def test_search_filters_and_orders_inside_postgresql() -> None:
     assert statement is not None
     compiled_sql = str(statement.compile(dialect=postgresql.dialect()))
     assert "JOIN documents" in compiled_sql
+    assert "documents.assistant_id =" in compiled_sql
     assert "documents.original_filename" in compiled_sql
     assert "document_chunks.embedding <=>" in compiled_sql
     assert "WHERE" in compiled_sql
     assert ">=" in compiled_sql
     assert "ORDER BY" in compiled_sql
     assert "LIMIT" in compiled_sql
+    assert assistant_id in statement.compile().params.values()
 
 
 @pytest.mark.asyncio
@@ -205,6 +209,7 @@ async def test_search_rejects_invalid_parameters(
 
     with pytest.raises(ValueError):
         await repository.search_similar(
+            uuid4(),
             embedding,
             limit=limit,
             minimum_similarity=threshold,
@@ -220,6 +225,7 @@ async def test_database_errors_are_wrapped_without_query_details() -> None:
 
     with pytest.raises(VectorRepositoryError, match="Unable to retrieve"):
         await repository.search_similar(
+            uuid4(),
             (0.1, 0.2, 0.3),
             limit=5,
             minimum_similarity=0.7,

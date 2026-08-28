@@ -1,8 +1,9 @@
 from collections.abc import Sequence
 from typing import Protocol
+from uuid import UUID
 
 from app.application.constants import FALLBACK_ANSWER
-from app.application.use_cases import QuestionAnswerTrace
+from app.application.use_cases import AskQuestionCommand, QuestionAnswerTrace
 from app.domain.entities import SourceReference
 from app.evaluation.models import (
     EvaluationCase,
@@ -18,12 +19,23 @@ SOURCE_ACCURACY_TARGET = 0.9
 
 
 class TracedQuestionAnswerer(Protocol):
-    async def execute_with_trace(self, question: str) -> QuestionAnswerTrace: ...
+    async def execute_with_trace(
+        self,
+        command: AskQuestionCommand,
+    ) -> QuestionAnswerTrace: ...
 
 
 class RAGEvaluator:
-    def __init__(self, question_answerer: TracedQuestionAnswerer) -> None:
+    def __init__(
+        self,
+        question_answerer: TracedQuestionAnswerer,
+        *,
+        user_id: UUID,
+        assistant_id: UUID,
+    ) -> None:
         self._question_answerer = question_answerer
+        self._user_id = user_id
+        self._assistant_id = assistant_id
 
     async def evaluate(self, cases: Sequence[EvaluationCase]) -> EvaluationReport:
         if not cases:
@@ -33,7 +45,13 @@ class RAGEvaluator:
         return EvaluationReport(records=records, summary=self._summarize(records))
 
     async def _evaluate_case(self, case: EvaluationCase) -> EvaluationRecord:
-        trace = await self._question_answerer.execute_with_trace(case.question)
+        trace = await self._question_answerer.execute_with_trace(
+            AskQuestionCommand(
+                user_id=self._user_id,
+                assistant_id=self._assistant_id,
+                question=case.question,
+            )
+        )
         retrieved_source, similarity_score = self._top_retrieval(trace)
 
         if case.expected_behavior is ExpectedBehavior.REFUSE:

@@ -1,12 +1,14 @@
 from dataclasses import dataclass, field
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
 
 from app.application.constants import FALLBACK_ANSWER
-from app.dependencies import get_ask_question
-from app.domain.entities import Answer, SourceReference
-from app.domain.errors import LLMGenerationError
+from app.application.use_cases import AskQuestionCommand
+from app.dependencies import get_access_token_verifier, get_ask_question
+from app.domain.entities import Answer, AuthenticatedUser, SourceReference
+from app.domain.errors import AssistantNotFoundError, LLMGenerationError
 from app.main import create_app
 
 
@@ -14,10 +16,10 @@ from app.main import create_app
 class FakeAskQuestion:
     answer: Answer | None = None
     error: Exception | None = None
-    calls: list[str] = field(default_factory=list)
+    calls: list[AskQuestionCommand] = field(default_factory=list)
 
-    async def execute(self, question: str) -> Answer:
-        self.calls.append(question)
+    async def execute(self, command: AskQuestionCommand) -> Answer:
+        self.calls.append(command)
         if self.error is not None:
             raise self.error
         if self.answer is None:
@@ -25,27 +27,55 @@ class FakeAskQuestion:
         return self.answer
 
 
+@dataclass
+class FakeAccessTokenVerifier:
+    user: AuthenticatedUser
+    tokens: list[str] = field(default_factory=list)
+
+    async def verify(self, token: str) -> AuthenticatedUser:
+        self.tokens.append(token)
+        return self.user
+
+
 async def post_chat(
     fake_use_case: FakeAskQuestion,
     payload: object,
+    *,
+    user: AuthenticatedUser | None = None,
+    assistant_id: UUID | None = None,
+    authenticated: bool = True,
 ) -> httpx.Response:
     application = create_app()
+    authenticated_user = user or AuthenticatedUser(id=uuid4())
+    target_assistant_id = assistant_id or uuid4()
+    verifier = FakeAccessTokenVerifier(authenticated_user)
+
+    async def override_verifier() -> FakeAccessTokenVerifier:
+        return verifier
 
     async def override_use_case() -> FakeAskQuestion:
         return fake_use_case
 
     application.dependency_overrides[get_ask_question] = override_use_case
+    application.dependency_overrides[get_access_token_verifier] = override_verifier
     transport = httpx.ASGITransport(app=application)
+    headers = {"Authorization": "Bearer valid-token"} if authenticated else {}
 
     async with httpx.AsyncClient(
         transport=transport,
         base_url="http://testserver",
     ) as client:
-        return await client.post("/api/v1/chat", json=payload)
+        return await client.post(
+            f"/api/v1/assistants/{target_assistant_id}/chat",
+            headers=headers,
+            json=payload,
+        )
 
 
 @pytest.mark.asyncio
 async def test_chat_invokes_use_case_and_serializes_grounded_answer() -> None:
+    user = AuthenticatedUser(id=uuid4())
+    assistant_id = uuid4()
     fake_use_case = FakeAskQuestion(
         answer=Answer(
             text="The warranty period is two years.",
@@ -59,6 +89,8 @@ async def test_chat_invokes_use_case_and_serializes_grounded_answer() -> None:
     response = await post_chat(
         fake_use_case,
         {"message": "  How long is the warranty?  "},
+        user=user,
+        assistant_id=assistant_id,
     )
 
     assert response.status_code == 200
@@ -69,7 +101,13 @@ async def test_chat_invokes_use_case_and_serializes_grounded_answer() -> None:
             {"document": "terms.pdf", "page": 1},
         ],
     }
-    assert fake_use_case.calls == ["How long is the warranty?"]
+    assert fake_use_case.calls == [
+        AskQuestionCommand(
+            user_id=user.id,
+            assistant_id=assistant_id,
+            question="How long is the warranty?",
+        )
+    ]
 
 
 @pytest.mark.asyncio
@@ -114,3 +152,46 @@ async def test_chat_maps_llm_failure_to_bad_gateway() -> None:
 
     assert response.status_code == 502
     assert response.json() == {"detail": "Gemini answer generation failed"}
+
+
+@pytest.mark.asyncio
+async def test_chat_requires_authentication() -> None:
+    fake_use_case = FakeAskQuestion()
+
+    response = await post_chat(
+        fake_use_case,
+        {"message": "Warranty?"},
+        authenticated=False,
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Authentication credentials were not provided"}
+    assert fake_use_case.calls == []
+
+
+@pytest.mark.asyncio
+async def test_cross_tenant_chat_is_concealed_as_not_found() -> None:
+    fake_use_case = FakeAskQuestion(error=AssistantNotFoundError("Assistant not found"))
+
+    response = await post_chat(fake_use_case, {"message": "Private question"})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Assistant not found"}
+
+
+@pytest.mark.asyncio
+async def test_openapi_documents_chat_bearer_authentication() -> None:
+    application = create_app()
+    transport = httpx.ASGITransport(app=application)
+
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get("/openapi.json")
+
+    operation = response.json()["paths"]["/api/v1/assistants/{assistant_id}/chat"][
+        "post"
+    ]
+    assert operation["security"] == [{"HTTPBearer": []}]
+    assert "/api/v1/chat" not in response.json()["paths"]

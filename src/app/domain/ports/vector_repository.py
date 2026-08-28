@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from typing import Protocol
+from uuid import UUID
 
 from app.domain.entities import Document, DocumentChunk, RetrievedChunk
 from app.domain.types import EmbeddingVector
@@ -14,6 +15,7 @@ class VectorRepository(Protocol):
 
     async def search_similar(
         self,
+        assistant_id: UUID,
         query_embedding: EmbeddingVector,
         *,
         limit: int,

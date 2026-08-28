@@ -84,7 +84,11 @@ async def run_evaluation(
                     content=build_sample_pdf(suite.pages),
                 )
             )
-        report = await RAGEvaluator(container.ask_question).evaluate(suite.cases)
+        report = await RAGEvaluator(
+            container.ask_question,
+            user_id=user_id,
+            assistant_id=assistant_id,
+        ).evaluate(suite.cases)
     finally:
         await container.close()
 

@@ -1,4 +1,8 @@
-from app.application.use_cases.ask_question import AskQuestion, QuestionAnswerTrace
+from app.application.use_cases.ask_question import (
+    AskQuestion,
+    AskQuestionCommand,
+    QuestionAnswerTrace,
+)
 from app.application.use_cases.ingest_document import (
     IngestDocument,
     IngestDocumentCommand,
@@ -22,6 +26,7 @@ from app.application.use_cases.manage_organizations import (
 
 __all__ = [
     "AskQuestion",
+    "AskQuestionCommand",
     "CreateAssistant",
     "CreateAssistantCommand",
     "CreateOrganization",

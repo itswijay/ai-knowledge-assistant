@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
 from app.application.constants import FALLBACK_ANSWER
-from app.application.use_cases import QuestionAnswerTrace
+from app.application.use_cases import AskQuestionCommand, QuestionAnswerTrace
 from app.domain.entities import Answer, RetrievedChunk, SourceReference
 from app.evaluation import EvaluationCase, ExpectedBehavior, RAGEvaluator
 
@@ -12,11 +12,14 @@ from app.evaluation import EvaluationCase, ExpectedBehavior, RAGEvaluator
 @dataclass
 class FakeQuestionAnswerer:
     traces: dict[str, QuestionAnswerTrace]
-    calls: list[str] = field(default_factory=list)
+    calls: list[AskQuestionCommand] = field(default_factory=list)
 
-    async def execute_with_trace(self, question: str) -> QuestionAnswerTrace:
-        self.calls.append(question)
-        return self.traces[question]
+    async def execute_with_trace(
+        self,
+        command: AskQuestionCommand,
+    ) -> QuestionAnswerTrace:
+        self.calls.append(command)
+        return self.traces[command.question]
 
 
 def retrieved_chunk(
@@ -38,6 +41,8 @@ def retrieved_chunk(
 
 @pytest.mark.asyncio
 async def test_evaluator_records_answers_sources_scores_and_targets() -> None:
+    user_id = uuid4()
+    assistant_id = uuid4()
     source = SourceReference(document="guide.pdf", page=2)
     answerable = EvaluationCase(
         question="How bright is it?",
@@ -69,9 +74,16 @@ async def test_evaluator_records_answers_sources_scores_and_targets() -> None:
         }
     )
 
-    report = await RAGEvaluator(answerer).evaluate([answerable, unanswerable])
+    report = await RAGEvaluator(
+        answerer,
+        user_id=user_id,
+        assistant_id=assistant_id,
+    ).evaluate([answerable, unanswerable])
 
-    assert answerer.calls == [answerable.question, unanswerable.question]
+    assert answerer.calls == [
+        AskQuestionCommand(user_id, assistant_id, answerable.question),
+        AskQuestionCommand(user_id, assistant_id, unanswerable.question),
+    ]
     assert report.records[0].correctness is True
     assert report.records[0].expected_source == source
     assert report.records[0].retrieved_source == source
@@ -90,6 +102,8 @@ async def test_evaluator_records_answers_sources_scores_and_targets() -> None:
 
 @pytest.mark.asyncio
 async def test_evaluator_marks_incorrect_answer_and_source() -> None:
+    user_id = uuid4()
+    assistant_id = uuid4()
     expected_source = SourceReference(document="guide.pdf", page=1)
     case = EvaluationCase(
         question="How long is the warranty?",
@@ -120,7 +134,11 @@ async def test_evaluator_marks_incorrect_answer_and_source() -> None:
         }
     )
 
-    report = await RAGEvaluator(answerer).evaluate([case, refusal_case])
+    report = await RAGEvaluator(
+        answerer,
+        user_id=user_id,
+        assistant_id=assistant_id,
+    ).evaluate([case, refusal_case])
 
     assert report.records[0].correctness is False
     assert report.records[0].source_correct is False
@@ -148,4 +166,8 @@ async def test_evaluator_requires_both_case_types() -> None:
     )
 
     with pytest.raises(ValueError, match="answerable and unanswerable"):
-        await RAGEvaluator(answerer).evaluate([case])
+        await RAGEvaluator(
+            answerer,
+            user_id=uuid4(),
+            assistant_id=uuid4(),
+        ).evaluate([case])

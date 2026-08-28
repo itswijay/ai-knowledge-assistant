@@ -115,6 +115,7 @@ def build_application_container(settings: Settings) -> ApplicationContainer:
         vector_repository=vector_repository,
         llm_provider=llm_provider,
         prompt_builder=GroundedPromptBuilder(),
+        assistant_access_checker=assistant_access_checker,
         top_k=settings.rag_top_k,
         similarity_threshold=settings.rag_similarity_threshold,
     )
