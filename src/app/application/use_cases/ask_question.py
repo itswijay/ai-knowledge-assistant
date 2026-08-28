@@ -68,7 +68,7 @@ class AskQuestion:
         *,
         retrieval_minimum_similarity: float,
     ) -> QuestionAnswerTrace:
-        await self._assistant_access_checker.require_member(
+        assistant = await self._assistant_access_checker.require_member(
             user_id=command.user_id,
             assistant_id=command.assistant_id,
         )
@@ -94,6 +94,7 @@ class AskQuestion:
         grounded_prompt = self._prompt_builder.build(
             question=cleaned_question,
             chunks=sufficient_chunks,
+            assistant_instructions=assistant.system_prompt,
         )
         answer_text = (
             await self._llm_provider.generate(

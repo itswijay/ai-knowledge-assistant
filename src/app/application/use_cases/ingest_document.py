@@ -57,7 +57,7 @@ class IngestDocument:
         pages = tuple(self._parser.parse(command.content))
         if not pages:
             raise NoExtractableTextError(
-                "PDF contains no extractable text; OCR is not supported in Phase 1"
+                "PDF contains no extractable text; OCR is not supported."
             )
 
         chunk_drafts = tuple(self._chunker.chunk_pages(pages))

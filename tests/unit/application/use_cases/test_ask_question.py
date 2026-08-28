@@ -110,6 +110,7 @@ def build_use_case(
     chunks: Sequence[RetrievedChunk],
     *,
     answer: str = "The warranty period is two years.",
+    assistant_system_prompt: str = "Answer in a concise and friendly tone.",
     top_k: int = 5,
     similarity_threshold: float = 0.7,
 ) -> tuple[
@@ -123,7 +124,11 @@ def build_use_case(
     repository = FakeVectorRepository(chunks=chunks)
     llm_provider = FakeLLMProvider(answer=answer)
     access_checker = FakeAssistantAccessChecker(
-        Assistant(organization_id=uuid4(), name="Support")
+        Assistant(
+            organization_id=uuid4(),
+            name="Support",
+            system_prompt=assistant_system_prompt,
+        )
     )
     use_case = AskQuestion(
         embedding_provider=embedding_provider,
@@ -177,6 +182,8 @@ async def test_relevant_context_produces_grounded_answer_with_sources() -> None:
     assert len(llm.calls) == 1
     system_instruction, prompt = llm.calls[0]
     assert "using only facts explicitly supported" in system_instruction
+    assert "Answer in a concise and friendly tone." in system_instruction
+    assert "lower priority" in system_instruction
     assert "How long is the warranty?" in prompt
     assert "The warranty period is two years." in prompt
     assert "Claims require the original receipt." in prompt

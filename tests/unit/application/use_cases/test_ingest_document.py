@@ -183,7 +183,10 @@ async def test_ingestion_orchestrates_processing_and_persistence() -> None:
 async def test_no_extractable_pages_stops_before_embedding_and_persistence() -> None:
     use_case, _, _, embeddings, repository, access_checker = build_use_case(pages=[])
 
-    with pytest.raises(NoExtractableTextError, match="no extractable text"):
+    with pytest.raises(
+        NoExtractableTextError,
+        match=r"^PDF contains no extractable text; OCR is not supported\.$",
+    ):
         await use_case.execute(
             IngestDocumentCommand(
                 user_id=uuid4(),
