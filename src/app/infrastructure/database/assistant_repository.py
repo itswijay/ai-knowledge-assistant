@@ -93,7 +93,7 @@ class PostgresAssistantRepository:
             name=assistant.name,
             description=assistant.description,
             welcome_message=assistant.welcome_message,
-            system_prompt=assistant.system_prompt,
+            assistant_instructions=assistant.assistant_instructions,
             logo_url=assistant.logo_url,
             primary_color=assistant.primary_color,
             created_at=assistant.created_at,
@@ -108,7 +108,7 @@ class PostgresAssistantRepository:
             name=model.name,
             description=model.description,
             welcome_message=model.welcome_message,
-            system_prompt=model.system_prompt,
+            assistant_instructions=model.assistant_instructions,
             logo_url=model.logo_url,
             primary_color=model.primary_color,
             created_at=model.created_at,
@@ -120,7 +120,7 @@ class PostgresAssistantRepository:
         model.name = assistant.name
         model.description = assistant.description
         model.welcome_message = assistant.welcome_message
-        model.system_prompt = assistant.system_prompt
+        model.assistant_instructions = assistant.assistant_instructions
         model.logo_url = assistant.logo_url
         model.primary_color = assistant.primary_color
         model.updated_at = assistant.updated_at

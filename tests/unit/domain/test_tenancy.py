@@ -12,8 +12,8 @@ from app.domain.entities import (
     OrganizationRole,
 )
 from app.domain.entities.assistant import (
+    DEFAULT_ASSISTANT_INSTRUCTIONS,
     DEFAULT_PRIMARY_COLOR,
-    DEFAULT_SYSTEM_PROMPT,
     DEFAULT_WELCOME_MESSAGE,
 )
 from app.domain.errors import (
@@ -100,7 +100,7 @@ def test_assistant_has_safe_customization_defaults() -> None:
 
     assert assistant.organization_id == organization_id
     assert assistant.welcome_message == DEFAULT_WELCOME_MESSAGE
-    assert assistant.system_prompt == DEFAULT_SYSTEM_PROMPT
+    assert assistant.assistant_instructions == DEFAULT_ASSISTANT_INSTRUCTIONS
     assert assistant.primary_color == DEFAULT_PRIMARY_COLOR
     assert assistant.description is None
     assert assistant.logo_url is None
@@ -112,7 +112,7 @@ def test_assistant_accepts_bounded_customization() -> None:
         name="Support",
         description="Answers product support questions.",
         welcome_message="Welcome to support.",
-        system_prompt="Use a concise and professional tone.",
+        assistant_instructions="Use a concise and professional tone.",
         logo_url="https://cdn.example.com/assistant/logo.png?v=2",
         primary_color="#a1B2c3",
     )
@@ -136,7 +136,7 @@ def test_assistant_accepts_bounded_customization() -> None:
         lambda: Assistant(
             organization_id=uuid4(),
             name="Support",
-            system_prompt=" ",
+            assistant_instructions=" ",
         ),
         lambda: Assistant(
             organization_id=uuid4(),

@@ -12,13 +12,13 @@ from pydantic import (
 )
 
 from app.domain.entities.assistant import (
+    DEFAULT_ASSISTANT_INSTRUCTIONS,
     DEFAULT_PRIMARY_COLOR,
-    DEFAULT_SYSTEM_PROMPT,
     DEFAULT_WELCOME_MESSAGE,
     MAX_ASSISTANT_DESCRIPTION_LENGTH,
+    MAX_ASSISTANT_INSTRUCTIONS_LENGTH,
     MAX_ASSISTANT_NAME_LENGTH,
     MAX_LOGO_URL_LENGTH,
-    MAX_SYSTEM_PROMPT_LENGTH,
     MAX_WELCOME_MESSAGE_LENGTH,
 )
 
@@ -56,12 +56,12 @@ WelcomeMessage = Annotated[
         max_length=MAX_WELCOME_MESSAGE_LENGTH,
     ),
 ]
-SystemPrompt = Annotated[
+AssistantInstructions = Annotated[
     str,
     StringConstraints(
         strip_whitespace=True,
         min_length=1,
-        max_length=MAX_SYSTEM_PROMPT_LENGTH,
+        max_length=MAX_ASSISTANT_INSTRUCTIONS_LENGTH,
     ),
 ]
 LogoUrl = Annotated[
@@ -85,7 +85,7 @@ class CreateAssistantRequest(BaseModel):
     name: AssistantName
     description: AssistantDescription | None = None
     welcome_message: WelcomeMessage = DEFAULT_WELCOME_MESSAGE
-    system_prompt: SystemPrompt = DEFAULT_SYSTEM_PROMPT
+    assistant_instructions: AssistantInstructions = DEFAULT_ASSISTANT_INSTRUCTIONS
     logo_url: LogoUrl | None = None
     primary_color: PrimaryColor = DEFAULT_PRIMARY_COLOR
 
@@ -96,7 +96,7 @@ class UpdateAssistantRequest(BaseModel):
     name: AssistantName | None = None
     description: AssistantDescription | None = None
     welcome_message: WelcomeMessage | None = None
-    system_prompt: SystemPrompt | None = None
+    assistant_instructions: AssistantInstructions | None = None
     logo_url: LogoUrl | None = None
     primary_color: PrimaryColor | None = None
 
@@ -105,7 +105,7 @@ class UpdateAssistantRequest(BaseModel):
         for field_name in (
             "name",
             "welcome_message",
-            "system_prompt",
+            "assistant_instructions",
             "primary_color",
         ):
             if (
@@ -122,7 +122,7 @@ class AssistantResponse(BaseModel):
     name: str
     description: str | None
     welcome_message: str
-    system_prompt: str
+    assistant_instructions: str
     logo_url: str | None
     primary_color: str
     created_at: datetime

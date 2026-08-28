@@ -94,7 +94,7 @@ class AskQuestion:
         grounded_prompt = self._prompt_builder.build(
             question=cleaned_question,
             chunks=sufficient_chunks,
-            assistant_preferences=assistant.system_prompt,
+            assistant_instructions=assistant.assistant_instructions,
         )
         answer_text = (
             await self._llm_provider.generate(

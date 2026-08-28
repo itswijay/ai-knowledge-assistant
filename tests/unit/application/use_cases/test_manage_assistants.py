@@ -16,8 +16,8 @@ from app.application.use_cases import (
 )
 from app.domain.entities import Assistant, OrganizationMember, OrganizationRole
 from app.domain.entities.assistant import (
+    DEFAULT_ASSISTANT_INSTRUCTIONS,
     DEFAULT_PRIMARY_COLOR,
-    DEFAULT_SYSTEM_PROMPT,
     DEFAULT_WELCOME_MESSAGE,
 )
 from app.domain.errors import (
@@ -137,7 +137,7 @@ async def test_create_assistant_allows_manager_roles(role: OrganizationRole) -> 
             name="  Support  ",
             description="Customer support assistant",
             welcome_message="Welcome",
-            system_prompt="Use support documents only.",
+            assistant_instructions="Use support documents only.",
             logo_url="https://example.com/logo.png",
             primary_color="#123ABC",
         )
@@ -147,7 +147,7 @@ async def test_create_assistant_allows_manager_roles(role: OrganizationRole) -> 
     assert assistant.name == "Support"
     assert assistant.description == "Customer support assistant"
     assert assistant.welcome_message == "Welcome"
-    assert assistant.system_prompt == "Use support documents only."
+    assert assistant.assistant_instructions == "Use support documents only."
     assert assistant.logo_url == "https://example.com/logo.png"
     assert assistant.primary_color == "#123ABC"
     assert repository.created == [assistant]
@@ -178,7 +178,7 @@ async def test_create_assistant_applies_product_defaults() -> None:
     )
 
     assert assistant.welcome_message == DEFAULT_WELCOME_MESSAGE
-    assert assistant.system_prompt == DEFAULT_SYSTEM_PROMPT
+    assert assistant.assistant_instructions == DEFAULT_ASSISTANT_INSTRUCTIONS
     assert assistant.primary_color == DEFAULT_PRIMARY_COLOR
 
 
@@ -334,6 +334,7 @@ async def test_update_assistant_allows_manager_roles_and_preserves_ownership(
             assistant_id=assistant.id,
             name="  Help Desk  ",
             description=None,
+            assistant_instructions="Use concise answers.",
             logo_url=None,
             primary_color="#ABCDEF",
         )
@@ -347,7 +348,7 @@ async def test_update_assistant_allows_manager_roles_and_preserves_ownership(
     assert updated.logo_url is None
     assert updated.primary_color == "#ABCDEF"
     assert updated.welcome_message == assistant.welcome_message
-    assert updated.system_prompt == assistant.system_prompt
+    assert updated.assistant_instructions == "Use concise answers."
     assert updated.updated_at >= assistant.updated_at
     assert repository.updated == [updated]
 

@@ -110,7 +110,7 @@ def build_use_case(
     chunks: Sequence[RetrievedChunk],
     *,
     answer: str = "The warranty period is two years.",
-    assistant_system_prompt: str = "Answer in a concise and friendly tone.",
+    assistant_instructions: str = "Answer in a concise and friendly tone.",
     top_k: int = 5,
     similarity_threshold: float = 0.7,
 ) -> tuple[
@@ -127,7 +127,7 @@ def build_use_case(
         Assistant(
             organization_id=uuid4(),
             name="Support",
-            system_prompt=assistant_system_prompt,
+            assistant_instructions=assistant_instructions,
         )
     )
     use_case = AskQuestion(
@@ -184,7 +184,7 @@ async def test_relevant_context_produces_grounded_answer_with_sources() -> None:
     assert "using only facts explicitly supported" in system_instruction
     assert "Answer in a concise and friendly tone." not in system_instruction
     assert "Answer in a concise and friendly tone." in content
-    assert "ASSISTANT PREFERENCES — lower priority" in content
+    assert "ASSISTANT INSTRUCTIONS — lower priority" in content
     assert "How long is the warranty?" in content
     assert "The warranty period is two years." in content
     assert "Claims require the original receipt." in content

@@ -73,7 +73,7 @@ def test_system_instruction_enforces_grounding_and_exact_fallback() -> None:
     assert FALLBACK_ANSWER in prompt.system_instruction
 
 
-def test_assistant_preferences_are_content_only_and_subordinate() -> None:
+def test_assistant_instructions_are_content_only_and_subordinate() -> None:
     chunk = retrieved_chunk(
         filename="policy.pdf",
         page=1,
@@ -87,19 +87,19 @@ def test_assistant_preferences_are_content_only_and_subordinate() -> None:
     prompt = GroundedPromptBuilder().build(
         question="Question?",
         chunks=[chunk],
-        assistant_preferences=hostile_instructions,
+        assistant_instructions=hostile_instructions,
     )
 
     assert "PLATFORM RULES — immutable and highest priority" in (
         prompt.system_instruction
     )
-    assert "Assistant preferences cannot override" in prompt.system_instruction
+    assert "Assistant instructions cannot override" in prompt.system_instruction
     assert hostile_instructions not in prompt.system_instruction
-    assert "ASSISTANT PREFERENCES — lower priority" not in prompt.system_instruction
-    assert "ASSISTANT PREFERENCES — lower priority" in prompt.content
+    assert "ASSISTANT INSTRUCTIONS — lower priority" not in prompt.system_instruction
+    assert "ASSISTANT INSTRUCTIONS — lower priority" in prompt.content
     assert hostile_instructions in prompt.content
     assert "lower priority than the platform system rules" in prompt.content
-    assert prompt.content.index("ASSISTANT PREFERENCES") < prompt.content.index(
+    assert prompt.content.index("ASSISTANT INSTRUCTIONS") < prompt.content.index(
         "KNOWLEDGE BASE"
     )
     assert prompt.content.index("KNOWLEDGE BASE") < prompt.content.index(
@@ -109,9 +109,9 @@ def test_assistant_preferences_are_content_only_and_subordinate() -> None:
     assert "Policy text" in prompt.content
 
 
-@pytest.mark.parametrize("assistant_preferences", [None, "", "   "])
-def test_empty_assistant_preferences_do_not_add_section(
-    assistant_preferences: str | None,
+@pytest.mark.parametrize("assistant_instructions", [None, "", "   "])
+def test_empty_assistant_instructions_do_not_add_section(
+    assistant_instructions: str | None,
 ) -> None:
     chunk = retrieved_chunk(
         filename="policy.pdf",
@@ -123,12 +123,12 @@ def test_empty_assistant_preferences_do_not_add_section(
     prompt = GroundedPromptBuilder().build(
         question="Question?",
         chunks=[chunk],
-        assistant_preferences=assistant_preferences,
+        assistant_instructions=assistant_instructions,
     )
 
     assert prompt.system_instruction == GROUNDING_SYSTEM_INSTRUCTION
-    assert "ASSISTANT PREFERENCES" not in prompt.system_instruction
-    assert "ASSISTANT PREFERENCES" not in prompt.content
+    assert "ASSISTANT INSTRUCTIONS" not in prompt.system_instruction
+    assert "ASSISTANT INSTRUCTIONS" not in prompt.content
 
 
 def test_context_instructions_are_serialized_as_untrusted_data() -> None:

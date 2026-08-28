@@ -48,7 +48,7 @@ async def create_assistant(
             name=request.name,
             description=request.description,
             welcome_message=request.welcome_message,
-            system_prompt=request.system_prompt,
+            assistant_instructions=request.assistant_instructions,
             logo_url=request.logo_url,
             primary_color=request.primary_color,
         )
@@ -120,7 +120,7 @@ def _to_response(assistant: Assistant) -> AssistantResponse:
         name=assistant.name,
         description=assistant.description,
         welcome_message=assistant.welcome_message,
-        system_prompt=assistant.system_prompt,
+        assistant_instructions=assistant.assistant_instructions,
         logo_url=assistant.logo_url,
         primary_color=assistant.primary_color,
         created_at=assistant.created_at,

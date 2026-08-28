@@ -19,8 +19,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.constants import EMBEDDING_DIMENSION
 from app.domain.entities.assistant import (
+    DEFAULT_ASSISTANT_INSTRUCTIONS,
     DEFAULT_PRIMARY_COLOR,
-    DEFAULT_SYSTEM_PROMPT,
     DEFAULT_WELCOME_MESSAGE,
 )
 from app.infrastructure.database.base import Base
@@ -112,8 +112,8 @@ class AssistantModel(Base):
             name="welcome_message_not_blank",
         ),
         CheckConstraint(
-            "length(btrim(system_prompt)) > 0",
-            name="system_prompt_not_blank",
+            "length(btrim(assistant_instructions)) > 0",
+            name="assistant_instructions_not_blank",
         ),
         CheckConstraint(
             "logo_url IS NULL OR length(btrim(logo_url)) > 0",
@@ -144,11 +144,11 @@ class AssistantModel(Base):
         default=DEFAULT_WELCOME_MESSAGE,
         server_default=DEFAULT_WELCOME_MESSAGE,
     )
-    system_prompt: Mapped[str] = mapped_column(
+    assistant_instructions: Mapped[str] = mapped_column(
         String(4000),
         nullable=False,
-        default=DEFAULT_SYSTEM_PROMPT,
-        server_default=DEFAULT_SYSTEM_PROMPT,
+        default=DEFAULT_ASSISTANT_INSTRUCTIONS,
+        server_default=DEFAULT_ASSISTANT_INSTRUCTIONS,
     )
     logo_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     primary_color: Mapped[str] = mapped_column(

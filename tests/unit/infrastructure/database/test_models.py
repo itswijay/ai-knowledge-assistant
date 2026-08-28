@@ -82,7 +82,7 @@ def test_assistant_model_matches_bounded_customization_schema() -> None:
     assert columns.name.type.length == 100
     assert columns.description.type.length == 1000
     assert columns.welcome_message.type.length == 500
-    assert columns.system_prompt.type.length == 4000
+    assert columns.assistant_instructions.type.length == 4000
     assert columns.logo_url.type.length == 2048
     assert columns.primary_color.type.length == 7
     assert {index.name for index in AssistantModel.__table__.indexes} == {

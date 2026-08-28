@@ -5,12 +5,12 @@ from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 DEFAULT_WELCOME_MESSAGE = "Hi! How can I help you today?"
-DEFAULT_SYSTEM_PROMPT = "Answer questions using the provided knowledge base."
+DEFAULT_ASSISTANT_INSTRUCTIONS = "Answer questions using the provided knowledge base."
 DEFAULT_PRIMARY_COLOR = "#2563EB"
 MAX_ASSISTANT_NAME_LENGTH = 100
 MAX_ASSISTANT_DESCRIPTION_LENGTH = 1000
 MAX_WELCOME_MESSAGE_LENGTH = 500
-MAX_SYSTEM_PROMPT_LENGTH = 4000
+MAX_ASSISTANT_INSTRUCTIONS_LENGTH = 4000
 MAX_LOGO_URL_LENGTH = 2048
 HEX_COLOR_PATTERN = re.compile(r"#[0-9A-Fa-f]{6}\Z")
 
@@ -21,7 +21,7 @@ class Assistant:
     name: str
     description: str | None = None
     welcome_message: str = DEFAULT_WELCOME_MESSAGE
-    system_prompt: str = DEFAULT_SYSTEM_PROMPT
+    assistant_instructions: str = DEFAULT_ASSISTANT_INSTRUCTIONS
     logo_url: str | None = None
     primary_color: str = DEFAULT_PRIMARY_COLOR
     id: UUID = field(default_factory=uuid4)
@@ -47,9 +47,9 @@ class Assistant:
             maximum_length=MAX_WELCOME_MESSAGE_LENGTH,
         )
         _validate_required_text(
-            self.system_prompt,
-            field_name="system_prompt",
-            maximum_length=MAX_SYSTEM_PROMPT_LENGTH,
+            self.assistant_instructions,
+            field_name="assistant_instructions",
+            maximum_length=MAX_ASSISTANT_INSTRUCTIONS_LENGTH,
         )
         _validate_logo_url(self.logo_url)
         if HEX_COLOR_PATTERN.fullmatch(self.primary_color) is None:

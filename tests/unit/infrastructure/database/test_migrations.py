@@ -15,6 +15,9 @@ MIGRATION_0001_SHA256 = (
 MIGRATION_0002_SHA256 = (
     "da63e908a687ae441b3247a07250e5d2b4cc716052ec45e03058175e54f86c68"
 )
+MIGRATION_0003_SHA256 = (
+    "8a85f80c3b918bf151daafacddab3e7569b283c537d372f2cf6abd1dc0771a57"
+)
 PROTECTED_TABLES = (
     "organizations",
     "organization_members",
@@ -27,7 +30,7 @@ PROTECTED_TABLES = (
 def test_migration_history_has_one_expected_head() -> None:
     scripts = ScriptDirectory.from_config(Config("alembic.ini"))
 
-    assert scripts.get_heads() == ["0003"]
+    assert scripts.get_heads() == ["0004"]
     assert scripts.get_base() == "0001"
 
 
@@ -41,6 +44,12 @@ def test_multi_tenant_schema_migration_is_unchanged() -> None:
     migration_path = Path("alembic/versions/0002_add_multi_tenant_foundation.py")
 
     assert sha256(migration_path.read_bytes()).hexdigest() == MIGRATION_0002_SHA256
+
+
+def test_security_migration_is_unchanged() -> None:
+    migration_path = Path("alembic/versions/0003_secure_tenant_tables.py")
+
+    assert sha256(migration_path.read_bytes()).hexdigest() == MIGRATION_0003_SHA256
 
 
 def test_offline_migration_creates_pgvector_schema(
@@ -159,3 +168,43 @@ def test_security_migration_has_explicit_downgrade(
             "GRANT SELECT, INSERT, UPDATE, DELETE "
             f"ON TABLE public.{table_name} TO anon, authenticated"
         ) in migration_sql
+
+
+def test_assistant_instructions_migration_renames_column_in_both_directions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://postgres:password@localhost/app",
+    )
+    get_database_settings.cache_clear()
+    upgrade_output = StringIO()
+    downgrade_output = StringIO()
+
+    try:
+        command.upgrade(
+            Config("alembic.ini", output_buffer=upgrade_output),
+            "0003:0004",
+            sql=True,
+        )
+        command.downgrade(
+            Config("alembic.ini", output_buffer=downgrade_output),
+            "0004:0003",
+            sql=True,
+        )
+    finally:
+        get_database_settings.cache_clear()
+
+    upgrade_sql = upgrade_output.getvalue()
+    assert "RENAME system_prompt TO assistant_instructions" in upgrade_sql
+    assert (
+        "RENAME CONSTRAINT ck_assistants_system_prompt_not_blank "
+        "TO ck_assistants_assistant_instructions_not_blank"
+    ) in upgrade_sql
+
+    downgrade_sql = downgrade_output.getvalue()
+    assert "RENAME assistant_instructions TO system_prompt" in downgrade_sql
+    assert (
+        "RENAME CONSTRAINT ck_assistants_assistant_instructions_not_blank "
+        "TO ck_assistants_system_prompt_not_blank"
+    ) in downgrade_sql

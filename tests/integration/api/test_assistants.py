@@ -21,7 +21,6 @@ from app.dependencies import (
 from app.domain.entities import Assistant, AuthenticatedUser
 from app.domain.entities.assistant import (
     DEFAULT_PRIMARY_COLOR,
-    DEFAULT_SYSTEM_PROMPT,
     DEFAULT_WELCOME_MESSAGE,
 )
 from app.domain.errors import AssistantNotFoundError, InsufficientPermissionError
@@ -150,7 +149,11 @@ async def request_assistant_endpoint(
 async def test_create_assistant_uses_verified_user_and_path_organization() -> None:
     user = AuthenticatedUser(id=uuid4())
     organization_id = uuid4()
-    assistant = Assistant(organization_id=organization_id, name="Support")
+    assistant = Assistant(
+        organization_id=organization_id,
+        name="Support",
+        assistant_instructions="Be concise and friendly.",
+    )
     use_case = FakeCreateAssistant(assistant=assistant)
 
     response, verifier = await request_assistant_endpoint(
@@ -159,13 +162,18 @@ async def test_create_assistant_uses_verified_user_and_path_organization() -> No
         dependency=get_create_assistant,
         use_case=use_case,
         user=user,
-        json={"name": "  Support  "},
+        json={
+            "name": "  Support  ",
+            "assistant_instructions": "Be concise and friendly.",
+        },
     )
 
     assert response.status_code == 201
     assert response.json()["id"] == str(assistant.id)
     assert response.json()["organization_id"] == str(organization_id)
     assert response.json()["name"] == "Support"
+    assert response.json()["assistant_instructions"] == "Be concise and friendly."
+    assert "system_prompt" not in response.json()
     assert use_case.calls == [
         CreateAssistantCommand(
             user_id=user.id,
@@ -173,7 +181,7 @@ async def test_create_assistant_uses_verified_user_and_path_organization() -> No
             name="Support",
             description=None,
             welcome_message=DEFAULT_WELCOME_MESSAGE,
-            system_prompt=DEFAULT_SYSTEM_PROMPT,
+            assistant_instructions="Be concise and friendly.",
             logo_url=None,
             primary_color=DEFAULT_PRIMARY_COLOR,
         )
@@ -232,6 +240,7 @@ async def test_patch_preserves_omitted_fields_and_allows_optional_nulls() -> Non
         organization_id=uuid4(),
         name="Support",
         description=None,
+        assistant_instructions="Use concise answers.",
         logo_url=None,
     )
     use_case = FakeUpdateAssistant(assistant=assistant)
@@ -242,7 +251,11 @@ async def test_patch_preserves_omitted_fields_and_allows_optional_nulls() -> Non
         dependency=get_update_assistant,
         use_case=use_case,
         user=user,
-        json={"description": None, "logo_url": None},
+        json={
+            "description": None,
+            "assistant_instructions": "Use concise answers.",
+            "logo_url": None,
+        },
     )
 
     assert response.status_code == 200
@@ -254,10 +267,11 @@ async def test_patch_preserves_omitted_fields_and_allows_optional_nulls() -> Non
     assert command.user_id == user.id
     assert command.assistant_id == assistant.id
     assert command.description is None
+    assert command.assistant_instructions == "Use concise answers."
     assert command.logo_url is None
     assert command.name == empty_command.name
     assert command.welcome_message == empty_command.welcome_message
-    assert command.system_prompt == empty_command.system_prompt
+    assert empty_command.assistant_instructions != command.assistant_instructions
     assert command.primary_color == empty_command.primary_color
 
 
@@ -331,7 +345,7 @@ async def test_create_assistant_rejects_client_supplied_tenant_identity() -> Non
     [
         {"name": None},
         {"welcome_message": None},
-        {"system_prompt": None},
+        {"assistant_instructions": None},
         {"primary_color": None},
     ],
 )

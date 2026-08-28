@@ -153,7 +153,7 @@ def assistant_model(assistant: Assistant) -> AssistantModel:
         name=assistant.name,
         description=assistant.description,
         welcome_message=assistant.welcome_message,
-        system_prompt=assistant.system_prompt,
+        assistant_instructions=assistant.assistant_instructions,
         logo_url=assistant.logo_url,
         primary_color=assistant.primary_color,
         created_at=assistant.created_at,
@@ -304,6 +304,7 @@ async def test_create_and_list_assistants_preserve_tenant_scope() -> None:
     assert isinstance(stored, AssistantModel)
     assert stored.organization_id == organization_id
     assert stored.name == "Support"
+    assert stored.assistant_instructions == assistant.assistant_instructions
 
     list_session = FakeSession(result_models=[assistant_model(assistant)])
     repository = PostgresAssistantRepository(session_factory(list_session))
@@ -337,7 +338,7 @@ async def test_update_assistant_changes_customization_but_not_ownership() -> Non
         name="Updated Support",
         description="Updated description",
         welcome_message="Welcome",
-        system_prompt="Use a concise tone.",
+        assistant_instructions="Use a concise tone.",
         logo_url="https://cdn.example.com/logo.png",
         primary_color="#112233",
         created_at=assistant.created_at,
@@ -352,7 +353,7 @@ async def test_update_assistant_changes_customization_but_not_ownership() -> Non
     assert stored.name == "Updated Support"
     assert stored.description == "Updated description"
     assert stored.welcome_message == "Welcome"
-    assert stored.system_prompt == "Use a concise tone."
+    assert stored.assistant_instructions == "Use a concise tone."
     assert stored.logo_url == "https://cdn.example.com/logo.png"
     assert stored.primary_color == "#112233"
     assert stored.created_at == assistant.created_at

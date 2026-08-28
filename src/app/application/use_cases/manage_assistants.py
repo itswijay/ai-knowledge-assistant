@@ -7,8 +7,8 @@ from uuid import UUID
 from app.application.services import AssistantAccessChecker, OrganizationAccessChecker
 from app.domain.entities import Assistant
 from app.domain.entities.assistant import (
+    DEFAULT_ASSISTANT_INSTRUCTIONS,
     DEFAULT_PRIMARY_COLOR,
-    DEFAULT_SYSTEM_PROMPT,
     DEFAULT_WELCOME_MESSAGE,
 )
 from app.domain.errors import AssistantNotFoundError
@@ -29,7 +29,7 @@ class CreateAssistantCommand:
     name: str
     description: str | None = None
     welcome_message: str = DEFAULT_WELCOME_MESSAGE
-    system_prompt: str = DEFAULT_SYSTEM_PROMPT
+    assistant_instructions: str = DEFAULT_ASSISTANT_INSTRUCTIONS
     logo_url: str | None = None
     primary_color: str = DEFAULT_PRIMARY_COLOR
 
@@ -41,7 +41,7 @@ class UpdateAssistantCommand:
     name: str | _Unset = _UNSET
     description: str | None | _Unset = _UNSET
     welcome_message: str | _Unset = _UNSET
-    system_prompt: str | _Unset = _UNSET
+    assistant_instructions: str | _Unset = _UNSET
     logo_url: str | None | _Unset = _UNSET
     primary_color: str | _Unset = _UNSET
 
@@ -65,7 +65,7 @@ class CreateAssistant:
             name=command.name.strip(),
             description=command.description,
             welcome_message=command.welcome_message,
-            system_prompt=command.system_prompt,
+            assistant_instructions=command.assistant_instructions,
             logo_url=command.logo_url,
             primary_color=command.primary_color,
         )
@@ -141,8 +141,8 @@ class UpdateAssistant:
             changes["description"] = command.description
         if command.welcome_message is not _UNSET:
             changes["welcome_message"] = command.welcome_message
-        if command.system_prompt is not _UNSET:
-            changes["system_prompt"] = command.system_prompt
+        if command.assistant_instructions is not _UNSET:
+            changes["assistant_instructions"] = command.assistant_instructions
         if command.logo_url is not _UNSET:
             changes["logo_url"] = command.logo_url
         if command.primary_color is not _UNSET:

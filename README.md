@@ -338,7 +338,7 @@ curl -X POST \
   }'
 ```
 
-Assistant responses also contain `system_prompt`, `logo_url`, and timestamps.
+Assistant responses also contain `assistant_instructions`, `logo_url`, and timestamps.
 Save the returned `id` as `ASSISTANT_ID`.
 
 ### Upload a document
