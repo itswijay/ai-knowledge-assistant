@@ -30,7 +30,11 @@ async def post_chat(
     payload: object,
 ) -> httpx.Response:
     application = create_app()
-    application.dependency_overrides[get_ask_question] = lambda: fake_use_case
+
+    async def override_use_case() -> FakeAskQuestion:
+        return fake_use_case
+
+    application.dependency_overrides[get_ask_question] = override_use_case
     transport = httpx.ASGITransport(app=application)
 
     async with httpx.AsyncClient(

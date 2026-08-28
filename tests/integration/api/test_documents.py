@@ -5,8 +5,7 @@ import httpx
 import pytest
 
 from app.application.use_cases import IngestDocumentCommand, IngestDocumentResult
-from app.core.config import Settings, get_settings
-from app.dependencies import get_ingest_document
+from app.dependencies import get_ingest_document, get_max_upload_size_bytes
 from app.domain.errors import InvalidDocumentError
 from app.main import create_app
 
@@ -26,16 +25,6 @@ class FakeIngestDocument:
         return self.result
 
 
-def build_test_settings(*, max_upload_size_mb: int = 1) -> Settings:
-    return Settings(
-        _env_file=None,
-        database_url="postgresql+asyncpg://postgres:password@localhost/app",
-        supabase_url="https://test-project.supabase.co",
-        gemini_api_key="test-api-key",
-        max_upload_size_mb=max_upload_size_mb,
-    )
-
-
 async def post_document(
     fake_use_case: FakeIngestDocument,
     *,
@@ -43,8 +32,17 @@ async def post_document(
     content: bytes = b"%PDF-test",
 ) -> httpx.Response:
     application = create_app()
-    application.dependency_overrides[get_ingest_document] = lambda: fake_use_case
-    application.dependency_overrides[get_settings] = lambda: build_test_settings()
+
+    async def override_use_case() -> FakeIngestDocument:
+        return fake_use_case
+
+    async def override_max_upload_size_bytes() -> int:
+        return 1024 * 1024
+
+    application.dependency_overrides[get_ingest_document] = override_use_case
+    application.dependency_overrides[get_max_upload_size_bytes] = (
+        override_max_upload_size_bytes
+    )
     transport = httpx.ASGITransport(app=application)
 
     async with httpx.AsyncClient(
@@ -110,8 +108,17 @@ async def test_document_processing_errors_return_unprocessable_content() -> None
 @pytest.mark.asyncio
 async def test_document_upload_requires_multipart_file() -> None:
     application = create_app()
-    application.dependency_overrides[get_ingest_document] = lambda: FakeIngestDocument()
-    application.dependency_overrides[get_settings] = lambda: build_test_settings()
+
+    async def override_use_case() -> FakeIngestDocument:
+        return FakeIngestDocument()
+
+    async def override_max_upload_size_bytes() -> int:
+        return 1024 * 1024
+
+    application.dependency_overrides[get_ingest_document] = override_use_case
+    application.dependency_overrides[get_max_upload_size_bytes] = (
+        override_max_upload_size_bytes
+    )
     transport = httpx.ASGITransport(app=application)
 
     async with httpx.AsyncClient(

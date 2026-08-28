@@ -2,12 +2,43 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from app.domain.errors import (
+    AccessTokenVerificationError,
+    AuthenticationError,
     DocumentProcessingError,
     DocumentTooLargeError,
     EmbeddingGenerationError,
+    ExpiredAccessTokenError,
     LLMGenerationError,
+    MissingAccessTokenError,
     VectorRepositoryError,
 )
+
+
+async def authentication_handler(
+    request: Request,
+    error: AuthenticationError,
+) -> JSONResponse:
+    if isinstance(error, MissingAccessTokenError):
+        detail = "Authentication credentials were not provided"
+    elif isinstance(error, ExpiredAccessTokenError):
+        detail = "Access token has expired"
+    else:
+        detail = "Access token is invalid"
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"detail": detail},
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def access_token_verification_handler(
+    request: Request,
+    error: AccessTokenVerificationError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "Authentication service is temporarily unavailable"},
+    )
 
 
 async def document_too_large_handler(
@@ -61,6 +92,14 @@ async def llm_provider_handler(
 
 
 def register_exception_handlers(application: FastAPI) -> None:
+    application.add_exception_handler(
+        AuthenticationError,
+        authentication_handler,
+    )
+    application.add_exception_handler(
+        AccessTokenVerificationError,
+        access_token_verification_handler,
+    )
     application.add_exception_handler(
         DocumentTooLargeError,
         document_too_large_handler,
