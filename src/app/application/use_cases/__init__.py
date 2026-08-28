@@ -4,6 +4,15 @@ from app.application.use_cases.ingest_document import (
     IngestDocumentCommand,
     IngestDocumentResult,
 )
+from app.application.use_cases.manage_assistants import (
+    CreateAssistant,
+    CreateAssistantCommand,
+    DeleteAssistant,
+    GetAssistant,
+    ListAssistants,
+    UpdateAssistant,
+    UpdateAssistantCommand,
+)
 from app.application.use_cases.manage_organizations import (
     CreateOrganization,
     CreateOrganizationCommand,
@@ -13,12 +22,19 @@ from app.application.use_cases.manage_organizations import (
 
 __all__ = [
     "AskQuestion",
+    "CreateAssistant",
+    "CreateAssistantCommand",
     "CreateOrganization",
     "CreateOrganizationCommand",
+    "DeleteAssistant",
+    "GetAssistant",
     "GetOrganization",
     "IngestDocument",
     "IngestDocumentCommand",
     "IngestDocumentResult",
+    "ListAssistants",
     "ListOrganizations",
     "QuestionAnswerTrace",
+    "UpdateAssistant",
+    "UpdateAssistantCommand",
 ]
