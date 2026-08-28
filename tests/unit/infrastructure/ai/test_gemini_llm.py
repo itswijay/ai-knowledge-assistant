@@ -75,7 +75,7 @@ async def test_gemini_three_uses_grounding_instruction_and_low_thinking() -> Non
 
     answer = await provider.generate(
         system_instruction="Use context only.",
-        prompt="Question and context",
+        content="Question and context",
     )
 
     assert answer == "Grounded answer."
@@ -98,7 +98,7 @@ async def test_legacy_gemini_model_uses_low_temperature() -> None:
         model="gemini-2.5-flash",
     )
 
-    await provider.generate(system_instruction="Rules", prompt="Prompt")
+    await provider.generate(system_instruction="Rules", content="Content")
 
     config = models.calls[0]["config"]
     assert isinstance(config, types.GenerateContentConfig)
@@ -108,19 +108,19 @@ async def test_legacy_gemini_model_uses_low_temperature() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("system_instruction", "prompt"),
-    [("", "Prompt"), ("Rules", ""), ("  ", "Prompt"), ("Rules", "  ")],
+    ("system_instruction", "content"),
+    [("", "Content"), ("Rules", ""), ("  ", "Content"), ("Rules", "  ")],
 )
-async def test_blank_prompt_input_is_rejected_before_api_call(
+async def test_blank_generation_input_is_rejected_before_api_call(
     system_instruction: str,
-    prompt: str,
+    content: str,
 ) -> None:
     provider, models, _ = build_provider(generated_response("Answer"))
 
     with pytest.raises(LLMGenerationError, match="must not be blank"):
         await provider.generate(
             system_instruction=system_instruction,
-            prompt=prompt,
+            content=content,
         )
 
     assert models.calls == []
@@ -131,7 +131,7 @@ async def test_empty_model_response_is_rejected() -> None:
     provider, _, _ = build_provider(generated_response(None))
 
     with pytest.raises(LLMGenerationError, match="empty answer"):
-        await provider.generate(system_instruction="Rules", prompt="Prompt")
+        await provider.generate(system_instruction="Rules", content="Content")
 
 
 @pytest.mark.asyncio
@@ -140,7 +140,7 @@ async def test_api_error_is_wrapped_without_provider_details() -> None:
     provider, _, _ = build_provider(generated_response(None), error=api_error)
 
     with pytest.raises(LLMGenerationError, match="generation failed") as caught:
-        await provider.generate(system_instruction="Rules", prompt="Prompt")
+        await provider.generate(system_instruction="Rules", content="Content")
 
     assert "sensitive details" not in str(caught.value)
 

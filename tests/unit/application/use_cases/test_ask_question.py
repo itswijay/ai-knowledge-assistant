@@ -64,8 +64,8 @@ class FakeLLMProvider:
     answer: str = "The warranty period is two years."
     calls: list[tuple[str, str]] = field(default_factory=list)
 
-    async def generate(self, *, system_instruction: str, prompt: str) -> str:
-        self.calls.append((system_instruction, prompt))
+    async def generate(self, *, system_instruction: str, content: str) -> str:
+        self.calls.append((system_instruction, content))
         return self.answer
 
 
@@ -180,13 +180,14 @@ async def test_relevant_context_produces_grounded_answer_with_sources() -> None:
         ("warranty.pdf", 4),
     ]
     assert len(llm.calls) == 1
-    system_instruction, prompt = llm.calls[0]
+    system_instruction, content = llm.calls[0]
     assert "using only facts explicitly supported" in system_instruction
-    assert "Answer in a concise and friendly tone." in system_instruction
-    assert "lower priority" in system_instruction
-    assert "How long is the warranty?" in prompt
-    assert "The warranty period is two years." in prompt
-    assert "Claims require the original receipt." in prompt
+    assert "Answer in a concise and friendly tone." not in system_instruction
+    assert "Answer in a concise and friendly tone." in content
+    assert "ASSISTANT PREFERENCES — lower priority" in content
+    assert "How long is the warranty?" in content
+    assert "The warranty period is two years." in content
+    assert "Claims require the original receipt." in content
 
 
 @pytest.mark.asyncio

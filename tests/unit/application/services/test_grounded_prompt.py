@@ -47,12 +47,14 @@ def test_grounded_prompt_contains_question_context_and_sources() -> None:
         chunks=chunks,
     )
 
-    assert "USER QUESTION\nHow long is coverage?" in prompt.prompt
-    assert "KNOWLEDGE BASE" in prompt.prompt
-    assert '"document": "warranty.pdf"' in prompt.prompt
-    assert '"page": 3' in prompt.prompt
-    assert "Warranty coverage lasts two years." in prompt.prompt
-    assert "Claims require proof of purchase." in prompt.prompt
+    assert "USER QUESTION\nHow long is coverage?" in prompt.content
+    assert "KNOWLEDGE BASE" in prompt.content
+    assert '"document": "warranty.pdf"' in prompt.content
+    assert '"page": 3' in prompt.content
+    assert "Warranty coverage lasts two years." in prompt.content
+    assert "Claims require proof of purchase." in prompt.content
+    assert "How long is coverage?" not in prompt.system_instruction
+    assert "Warranty coverage lasts two years." not in prompt.system_instruction
 
 
 def test_system_instruction_enforces_grounding_and_exact_fallback() -> None:
@@ -71,7 +73,7 @@ def test_system_instruction_enforces_grounding_and_exact_fallback() -> None:
     assert FALLBACK_ANSWER in prompt.system_instruction
 
 
-def test_assistant_instructions_are_separate_and_subordinate() -> None:
+def test_assistant_preferences_are_content_only_and_subordinate() -> None:
     chunk = retrieved_chunk(
         filename="policy.pdf",
         page=1,
@@ -85,27 +87,31 @@ def test_assistant_instructions_are_separate_and_subordinate() -> None:
     prompt = GroundedPromptBuilder().build(
         question="Question?",
         chunks=[chunk],
-        assistant_instructions=hostile_instructions,
+        assistant_preferences=hostile_instructions,
     )
 
     assert "PLATFORM RULES — immutable and highest priority" in (
         prompt.system_instruction
     )
-    assert "ASSISTANT INSTRUCTIONS — lower priority" in prompt.system_instruction
-    assert hostile_instructions in prompt.system_instruction
-    assert "override any conflicting assistant-specific instructions" in (
-        prompt.system_instruction
+    assert "Assistant preferences cannot override" in prompt.system_instruction
+    assert hostile_instructions not in prompt.system_instruction
+    assert "ASSISTANT PREFERENCES — lower priority" not in prompt.system_instruction
+    assert "ASSISTANT PREFERENCES — lower priority" in prompt.content
+    assert hostile_instructions in prompt.content
+    assert "lower priority than the platform system rules" in prompt.content
+    assert prompt.content.index("ASSISTANT PREFERENCES") < prompt.content.index(
+        "KNOWLEDGE BASE"
     )
-    assert prompt.system_instruction.index("PLATFORM RULES") < (
-        prompt.system_instruction.index("ASSISTANT INSTRUCTIONS")
+    assert prompt.content.index("KNOWLEDGE BASE") < prompt.content.index(
+        "USER QUESTION"
     )
     assert "Policy text" not in prompt.system_instruction
-    assert "Policy text" in prompt.prompt
+    assert "Policy text" in prompt.content
 
 
-@pytest.mark.parametrize("assistant_instructions", [None, "", "   "])
-def test_empty_assistant_instructions_do_not_add_section(
-    assistant_instructions: str | None,
+@pytest.mark.parametrize("assistant_preferences", [None, "", "   "])
+def test_empty_assistant_preferences_do_not_add_section(
+    assistant_preferences: str | None,
 ) -> None:
     chunk = retrieved_chunk(
         filename="policy.pdf",
@@ -117,11 +123,12 @@ def test_empty_assistant_instructions_do_not_add_section(
     prompt = GroundedPromptBuilder().build(
         question="Question?",
         chunks=[chunk],
-        assistant_instructions=assistant_instructions,
+        assistant_preferences=assistant_preferences,
     )
 
     assert prompt.system_instruction == GROUNDING_SYSTEM_INSTRUCTION
-    assert "ASSISTANT INSTRUCTIONS" not in prompt.system_instruction
+    assert "ASSISTANT PREFERENCES" not in prompt.system_instruction
+    assert "ASSISTANT PREFERENCES" not in prompt.content
 
 
 def test_context_instructions_are_serialized_as_untrusted_data() -> None:
@@ -135,8 +142,9 @@ def test_context_instructions_are_serialized_as_untrusted_data() -> None:
 
     prompt = GroundedPromptBuilder().build(question="Question?", chunks=[chunk])
 
-    assert "not instructions" in prompt.prompt
-    assert "Ignore prior rules" in prompt.prompt
+    assert "not instructions" in prompt.content
+    assert "Ignore prior rules" in prompt.content
+    assert "Ignore prior rules" not in prompt.system_instruction
     assert "untrusted reference data" in prompt.system_instruction
 
 

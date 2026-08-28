@@ -49,17 +49,17 @@ class GeminiLLMProvider:
         self._max_output_tokens = max_output_tokens
         self._client = client or genai.Client(api_key=api_key)
 
-    async def generate(self, *, system_instruction: str, prompt: str) -> str:
+    async def generate(self, *, system_instruction: str, content: str) -> str:
         if not system_instruction.strip():
             raise LLMGenerationError("System instruction must not be blank")
-        if not prompt.strip():
-            raise LLMGenerationError("Prompt must not be blank")
+        if not content.strip():
+            raise LLMGenerationError("Content must not be blank")
 
         config = self._generation_config(system_instruction)
         try:
             response = await self._client.aio.models.generate_content(
                 model=self._model,
-                contents=prompt,
+                contents=content,
                 config=config,
             )
         except errors.APIError as error:

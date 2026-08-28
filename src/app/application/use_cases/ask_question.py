@@ -94,12 +94,12 @@ class AskQuestion:
         grounded_prompt = self._prompt_builder.build(
             question=cleaned_question,
             chunks=sufficient_chunks,
-            assistant_instructions=assistant.system_prompt,
+            assistant_preferences=assistant.system_prompt,
         )
         answer_text = (
             await self._llm_provider.generate(
                 system_instruction=grounded_prompt.system_instruction,
-                prompt=grounded_prompt.prompt,
+                content=grounded_prompt.content,
             )
         ).strip()
         if answer_text == FALLBACK_ANSWER:
