@@ -30,6 +30,7 @@ def build_test_settings(*, max_upload_size_mb: int = 1) -> Settings:
     return Settings(
         _env_file=None,
         database_url="postgresql+asyncpg://postgres:password@localhost/app",
+        supabase_url="https://test-project.supabase.co",
         gemini_api_key="test-api-key",
         max_upload_size_mb=max_upload_size_mb,
     )

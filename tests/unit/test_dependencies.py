@@ -11,6 +11,7 @@ async def test_application_container_wires_and_closes_resources() -> None:
     settings = Settings(
         _env_file=None,
         database_url="postgresql+asyncpg://postgres:password@localhost/app",
+        supabase_url="https://test-project.supabase.co",
         gemini_api_key="test-api-key",
     )
 

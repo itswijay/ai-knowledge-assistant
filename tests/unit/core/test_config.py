@@ -8,6 +8,7 @@ from app.core.constants import EMBEDDING_DIMENSION
 
 REQUIRED_SETTINGS: dict[str, Any] = {
     "database_url": "postgresql+asyncpg://postgres:password@localhost:5432/app",
+    "supabase_url": "https://test-project.supabase.co",
     "gemini_api_key": "test-api-key",
 }
 
@@ -17,9 +18,11 @@ def build_settings(**overrides: Any) -> Settings:
     return Settings(_env_file=None, **values)
 
 
-def test_settings_use_safe_phase_one_defaults() -> None:
+def test_settings_use_safe_defaults() -> None:
     settings = build_settings()
 
+    assert settings.supabase_jwt_audience == "authenticated"
+    assert settings.supabase_jwks_cache_ttl_seconds == 600
     assert settings.gemini_llm_model == "gemini-3.7-flash"
     assert settings.gemini_max_output_tokens == 512
     assert settings.gemini_embedding_model == "gemini-embedding-2"
@@ -44,6 +47,9 @@ def test_credentials_are_masked_in_settings_representation() -> None:
 def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     environment = {
         "DATABASE_URL": "postgresql+asyncpg://postgres:password@localhost/app",
+        "SUPABASE_URL": "https://environment-project.supabase.co",
+        "SUPABASE_JWT_AUDIENCE": "authenticated",
+        "SUPABASE_JWKS_CACHE_TTL_SECONDS": "900",
         "GEMINI_API_KEY": "environment-api-key",
         "GEMINI_LLM_MODEL": "test-llm-model",
         "GEMINI_MAX_OUTPUT_TOKENS": "700",
@@ -58,6 +64,8 @@ def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
 
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
 
+    assert settings.supabase_jwt_audience == "authenticated"
+    assert settings.supabase_jwks_cache_ttl_seconds == 900
     assert settings.gemini_llm_model == "test-llm-model"
     assert settings.gemini_max_output_tokens == 700
     assert settings.gemini_embedding_model == "test-embedding-model"
@@ -81,6 +89,13 @@ def test_database_settings_do_not_require_provider_credentials() -> None:
     [
         ("database_url", "sqlite:///local.db"),
         ("database_url", "postgresql://postgres:password@localhost/app"),
+        ("supabase_url", "not-a-url"),
+        ("supabase_url", "https://user:password@test-project.supabase.co"),
+        ("supabase_url", "https://test-project.supabase.co/auth/v1"),
+        ("supabase_url", "https://test-project.supabase.co?query=value"),
+        ("supabase_jwt_audience", "   "),
+        ("supabase_jwks_cache_ttl_seconds", 59),
+        ("supabase_jwks_cache_ttl_seconds", 3601),
         ("gemini_llm_model", "   "),
         ("gemini_max_output_tokens", 0),
         ("gemini_max_output_tokens", 8193),
@@ -100,19 +115,30 @@ def test_settings_reject_invalid_values(field: str, value: object) -> None:
 
 def test_required_settings_must_be_present(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
 
     with pytest.raises(ValidationError) as error:
         Settings(_env_file=None)  # type: ignore[call-arg]
 
     missing_fields = {item["loc"][0] for item in error.value.errors()}
-    assert missing_fields == {"database_url", "gemini_api_key"}
+    assert missing_fields == {"database_url", "supabase_url", "gemini_api_key"}
+
+
+def test_supabase_auth_urls_are_derived_from_project_origin() -> None:
+    settings = build_settings(supabase_url="https://test-project.supabase.co/")
+
+    assert settings.supabase_jwt_issuer == ("https://test-project.supabase.co/auth/v1")
+    assert settings.supabase_jwks_url == (
+        "https://test-project.supabase.co/auth/v1/.well-known/jwks.json"
+    )
 
 
 def test_environment_cannot_override_schema_embedding_dimension(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("DATABASE_URL", str(REQUIRED_SETTINGS["database_url"]))
+    monkeypatch.setenv("SUPABASE_URL", str(REQUIRED_SETTINGS["supabase_url"]))
     monkeypatch.setenv("GEMINI_API_KEY", str(REQUIRED_SETTINGS["gemini_api_key"]))
     monkeypatch.setenv("EMBEDDING_DIMENSION", "1536")
 
