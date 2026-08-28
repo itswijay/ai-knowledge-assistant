@@ -1,9 +1,11 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import cast
 from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from fastapi import UploadFile
 
 from app.application.use_cases import IngestDocumentCommand, IngestDocumentResult
 from app.dependencies import (
@@ -16,10 +18,12 @@ from app.dependencies import (
 from app.domain.entities import AuthenticatedUser, Document
 from app.domain.errors import (
     DocumentNotFoundError,
+    DocumentTooLargeError,
     InsufficientPermissionError,
     InvalidDocumentError,
 )
 from app.main import create_app
+from app.presentation.api.routes.documents import upload_document
 
 
 @dataclass
@@ -74,6 +78,17 @@ class FakeDeleteDocument:
         self.calls.append((user_id, document_id))
         if self.error is not None:
             raise self.error
+
+
+@dataclass
+class FakeUploadFile:
+    content: bytes
+    filename: str = "oversized.pdf"
+    read_sizes: list[int] = field(default_factory=list)
+
+    async def read(self, size: int = -1) -> bytes:
+        self.read_sizes.append(size)
+        return self.content if size < 0 else self.content[:size]
 
 
 async def post_document(
@@ -193,12 +208,19 @@ async def test_document_upload_invokes_ingestion_and_serializes_result() -> None
 @pytest.mark.asyncio
 async def test_document_upload_reads_only_up_to_configured_limit() -> None:
     fake_use_case = FakeIngestDocument()
-    oversized_content = b"%PDF-" + bytes(1024 * 1024)
+    max_upload_size_bytes = 1024 * 1024
+    file = FakeUploadFile(content=b"%PDF-" + bytes(max_upload_size_bytes))
 
-    response = await post_document(fake_use_case, content=oversized_content)
+    with pytest.raises(DocumentTooLargeError, match="1 MB upload limit"):
+        await upload_document(
+            assistant_id=uuid4(),
+            file=cast(UploadFile, file),
+            user=AuthenticatedUser(id=uuid4()),
+            use_case=fake_use_case,
+            max_upload_size_bytes=max_upload_size_bytes,
+        )
 
-    assert response.status_code == 413
-    assert response.json() == {"detail": "PDF exceeds the 1 MB upload limit"}
+    assert file.read_sizes == [max_upload_size_bytes + 1]
     assert fake_use_case.calls == []
 
 
