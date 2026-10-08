@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi import FastAPI
 
@@ -32,6 +33,19 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=application_lifespan,
     )
+
+    # Allow requests from the Next.js development server
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     register_exception_handlers(application)
     application.include_router(health_router)
     application.include_router(authentication_router)
