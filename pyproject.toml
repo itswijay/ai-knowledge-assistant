@@ -1,7 +1,7 @@
 [project]
-name = "ai-knowledge-assistant"
+name = "kdok"
 version = "0.1.0"
-description = "Grounded RAG backend for an embeddable AI knowledge assistant"
+description = "Grounded RAG backend for kdok knowledge assistants"
 authors = [
     { name = "Pubudu Wijesundara", email = "neo17641@gmail.com" }
 ]

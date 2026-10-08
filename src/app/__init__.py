@@ -1,1 +1,1 @@
-"""AI knowledge assistant backend."""
+"""kdok backend."""

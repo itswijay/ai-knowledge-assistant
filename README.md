@@ -1,6 +1,6 @@
-# AI Knowledge Assistant
+# kdok
 
-A secure multi-tenant FastAPI backend for building grounded AI knowledge
+A secure multi-tenant FastAPI backend for building grounded kdok AI knowledge
 assistants. Organizations create assistants, upload private PDF documents, and
 ask questions whose answers are generated only from the selected assistant's
 knowledge base.

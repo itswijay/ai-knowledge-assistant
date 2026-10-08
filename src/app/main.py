@@ -29,7 +29,7 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
 
     application = FastAPI(
-        title="AI Knowledge Assistant API",
+        title="kdok backend",
         version="0.1.0",
         lifespan=application_lifespan,
     )
