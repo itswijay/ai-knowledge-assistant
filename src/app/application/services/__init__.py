@@ -3,6 +3,10 @@ from app.application.services.authorization import (
     DocumentAccessChecker,
     OrganizationAccessChecker,
 )
+from app.application.services.conversational import (
+    build_greeting_prompt,
+    is_conversational_greeting,
+)
 from app.application.services.grounded_prompt import (
     GroundedPrompt,
     GroundedPromptBuilder,
@@ -18,4 +22,6 @@ __all__ = [
     "OrganizationAccessChecker",
     "TextChunker",
     "WordChunker",
+    "build_greeting_prompt",
+    "is_conversational_greeting",
 ]

@@ -379,3 +379,51 @@ def test_invalid_retrieval_configuration_is_rejected(
             top_k=top_k,
             similarity_threshold=similarity_threshold,
         )
+
+
+@pytest.mark.asyncio
+async def test_greeting_with_no_retrieved_context_calls_llm_with_conversational_prompt() -> None:
+    use_case, _, _, llm, access_checker = build_use_case(
+        [],
+        answer="Hello! I'm your Shopping Assistant for Nihal Fashion. How can I help you?",
+        assistant_instructions="Be polite and helpful.",
+    )
+
+    answer = await use_case.execute(command(access_checker, "Hii!"))
+
+    assert (
+        answer.text
+        == "Hello! I'm your Shopping Assistant for Nihal Fashion. How can I help you?"
+    )
+    assert answer.sources == ()
+    assert len(llm.calls) == 1
+    system_instruction, content = llm.calls[0]
+    assert "Support" in system_instruction
+    assert "Be polite and helpful." in system_instruction
+    assert content == "Hii!"
+
+
+@pytest.mark.parametrize(
+    "greeting",
+    [
+        "Hi",
+        "hii",
+        "hello",
+        "hey there",
+        "good morning",
+        "how are you?",
+        "Thank you!",
+    ],
+)
+@pytest.mark.asyncio
+async def test_conversational_greetings_trigger_persona_response(
+    greeting: str,
+) -> None:
+    use_case, _, _, llm, access_checker = build_use_case([], answer="Greetings!")
+
+    answer = await use_case.execute(command(access_checker, greeting))
+
+    assert answer.text == "Greetings!"
+    assert answer.sources == ()
+    assert len(llm.calls) == 1
+

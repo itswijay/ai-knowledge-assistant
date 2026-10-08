@@ -4,7 +4,12 @@ from math import isfinite
 from uuid import UUID
 
 from app.application.constants import FALLBACK_ANSWER
-from app.application.services import AssistantAccessChecker, GroundedPromptBuilder
+from app.application.services import (
+    AssistantAccessChecker,
+    GroundedPromptBuilder,
+    build_greeting_prompt,
+    is_conversational_greeting,
+)
 from app.domain.entities import Answer, RetrievedChunk, SourceReference
 from app.domain.ports import EmbeddingProvider, LLMProvider, VectorRepository
 
@@ -86,6 +91,22 @@ class AskQuestion:
         traced_chunks = tuple(retrieved_chunks[: self._top_k])
         sufficient_chunks = self._select_sufficient_chunks(traced_chunks)
         if not sufficient_chunks:
+            if is_conversational_greeting(cleaned_question):
+                greeting_instruction = build_greeting_prompt(
+                    assistant_name=assistant.name,
+                    assistant_instructions=assistant.assistant_instructions,
+                )
+                greeting_response = (
+                    await self._llm_provider.generate(
+                        system_instruction=greeting_instruction,
+                        content=cleaned_question,
+                    )
+                ).strip()
+                return QuestionAnswerTrace(
+                    answer=Answer(text=greeting_response, sources=()),
+                    retrieved_chunks=traced_chunks,
+                )
+
             return QuestionAnswerTrace(
                 answer=self._fallback(),
                 retrieved_chunks=traced_chunks,
