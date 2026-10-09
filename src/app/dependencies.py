@@ -14,12 +14,14 @@ from app.application.services import (
 )
 from app.application.use_cases import (
     AskQuestion,
+    AskWidgetQuestion,
     CreateAssistant,
     CreateOrganization,
     DeleteAssistant,
     DeleteDocument,
     GetAssistant,
     GetOrganization,
+    GetWidgetConfig,
     IngestDocument,
     ListAssistants,
     ListDocuments,
@@ -66,6 +68,8 @@ class ApplicationContainer:
     delete_assistant: DeleteAssistant
     list_documents: ListDocuments
     delete_document: DeleteDocument
+    get_widget_config: GetWidgetConfig
+    ask_widget_question: AskWidgetQuestion
 
     async def close(self) -> None:
         try:
@@ -121,11 +125,12 @@ def build_application_container(settings: Settings) -> ApplicationContainer:
         vector_repository=vector_repository,
         assistant_access_checker=assistant_access_checker,
     )
+    prompt_builder = GroundedPromptBuilder()
     ask_question = AskQuestion(
         embedding_provider=embedding_provider,
         vector_repository=vector_repository,
         llm_provider=llm_provider,
-        prompt_builder=GroundedPromptBuilder(),
+        prompt_builder=prompt_builder,
         assistant_access_checker=assistant_access_checker,
         top_k=settings.rag_top_k,
         similarity_threshold=settings.rag_similarity_threshold,
@@ -167,6 +172,16 @@ def build_application_container(settings: Settings) -> ApplicationContainer:
         delete_document=DeleteDocument(
             document_repository,
             document_access_checker,
+        ),
+        get_widget_config=GetWidgetConfig(assistant_repository),
+        ask_widget_question=AskWidgetQuestion(
+            assistant_repository=assistant_repository,
+            embedding_provider=embedding_provider,
+            vector_repository=vector_repository,
+            llm_provider=llm_provider,
+            prompt_builder=prompt_builder,
+            top_k=settings.rag_top_k,
+            similarity_threshold=settings.rag_similarity_threshold,
         ),
     )
 
@@ -270,3 +285,15 @@ def get_max_upload_size_bytes(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> int:
     return settings.max_upload_size_mb * 1024 * 1024
+
+
+def get_widget_config(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> GetWidgetConfig:
+    return container.get_widget_config
+
+
+def get_ask_widget_question(
+    container: Annotated[ApplicationContainer, Depends(get_application_container)],
+) -> AskWidgetQuestion:
+    return container.ask_widget_question

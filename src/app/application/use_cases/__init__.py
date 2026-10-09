@@ -24,10 +24,18 @@ from app.application.use_cases.manage_organizations import (
     GetOrganization,
     ListOrganizations,
 )
+from app.application.use_cases.widget import (
+    AskWidgetQuestion,
+    AskWidgetQuestionCommand,
+    GetWidgetConfig,
+    WidgetConfig,
+)
 
 __all__ = [
     "AskQuestion",
     "AskQuestionCommand",
+    "AskWidgetQuestion",
+    "AskWidgetQuestionCommand",
     "CreateAssistant",
     "CreateAssistantCommand",
     "CreateOrganization",
@@ -36,6 +44,7 @@ __all__ = [
     "DeleteDocument",
     "GetAssistant",
     "GetOrganization",
+    "GetWidgetConfig",
     "IngestDocument",
     "IngestDocumentCommand",
     "IngestDocumentResult",
@@ -45,4 +54,5 @@ __all__ = [
     "QuestionAnswerTrace",
     "UpdateAssistant",
     "UpdateAssistantCommand",
+    "WidgetConfig",
 ]

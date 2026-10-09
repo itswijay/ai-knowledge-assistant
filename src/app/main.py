@@ -13,6 +13,7 @@ from app.presentation.api.routes.chat import router as chat_router
 from app.presentation.api.routes.documents import router as documents_router
 from app.presentation.api.routes.health import router as health_router
 from app.presentation.api.routes.organizations import router as organizations_router
+from app.presentation.api.routes.widget import router as widget_router
 
 
 @asynccontextmanager
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
     application.include_router(assistants_router)
     application.include_router(documents_router)
     application.include_router(chat_router)
+    application.include_router(widget_router)
     return application
 
 
