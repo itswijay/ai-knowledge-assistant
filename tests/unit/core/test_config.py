@@ -30,6 +30,10 @@ def test_settings_use_safe_defaults() -> None:
     assert settings.rag_top_k == 5
     assert settings.rag_similarity_threshold == 0.65
     assert settings.max_upload_size_mb == 10
+    assert settings.cors_origins == [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
 
 def test_credentials_are_masked_in_settings_representation() -> None:
@@ -146,3 +150,30 @@ def test_environment_cannot_override_schema_embedding_dimension(
         Settings(_env_file=None)  # type: ignore[call-arg]
 
     assert error.value.errors()[0]["loc"] == ("embedding_dimension",)
+
+
+def test_cors_origins_parsing_from_string_and_json() -> None:
+    # Comma-separated string
+    settings_csv = build_settings(
+        cors_origins="https://app.kdok.com, https://kdok-app.netlify.app"
+    )
+    assert settings_csv.cors_origins == [
+        "https://app.kdok.com",
+        "https://kdok-app.netlify.app",
+    ]
+
+    # JSON array string
+    settings_json = build_settings(
+        cors_origins='["https://app.kdok.com", "https://preview.netlify.app"]'
+    )
+    assert settings_json.cors_origins == [
+        "https://app.kdok.com",
+        "https://preview.netlify.app",
+    ]
+
+    # Empty string falls back to default
+    settings_empty = build_settings(cors_origins="")
+    assert settings_empty.cors_origins == [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]

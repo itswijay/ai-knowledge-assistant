@@ -1,0 +1,24 @@
+# Version control
+.git
+.gitignore
+
+# Python caches and virtual environments
+__pycache__
+*.py[cod]
+*$py.class
+.venv
+.ruff_cache
+.pytest_cache
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Development tools, tests, and documentation
+tests
+evaluations
+README.md
+agent.md
+.mise.toml
+.python-version

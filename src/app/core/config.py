@@ -1,3 +1,4 @@
+import json
 from functools import lru_cache
 from typing import Annotated
 
@@ -62,6 +63,31 @@ class Settings(DatabaseSettings):
     rag_top_k: int = Field(default=5, ge=1, le=50)
     rag_similarity_threshold: float = Field(default=0.65, ge=0.0, le=1.0)
     max_upload_size_mb: int = Field(default=10, gt=0)
+    cors_origins: str | list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    )
+
+    @field_validator("cors_origins", mode="after")
+    @classmethod
+    def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return ["http://localhost:3000", "http://127.0.0.1:3000"]
+            if value.startswith("[") and value.endswith("]"):
+                try:
+                    parsed = json.loads(value)
+                    if isinstance(parsed, list):
+                        return [
+                            str(item).strip() for item in parsed if str(item).strip()
+                        ]
+                except Exception:
+                    pass
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return [str(item).strip() for item in value if str(item).strip()]
 
     @field_validator("supabase_url")
     @classmethod

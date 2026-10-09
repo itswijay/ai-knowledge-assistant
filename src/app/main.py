@@ -35,13 +35,12 @@ def create_app() -> FastAPI:
         lifespan=application_lifespan,
     )
 
-    # Allow requests from the Next.js development server
+    settings = get_settings()
+
+    # Allow requests from configured origins (e.g. Next.js frontend)
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-        ],
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
